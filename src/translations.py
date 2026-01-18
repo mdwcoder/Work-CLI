@@ -94,7 +94,13 @@ TRANSLATIONS = {
         "encrypt_key_saved": "Encryption Key saved. Do not lose it if you move data.",
         "encrypt_warning_wipe": "WARNING: Changing key requires wiping data or re-encrypting. This specific command wipes data for safety. Continue?",
         "encrypt_enabled": "Encryption Enabled. Database encrypted.",
-        "encrypt_disabled": "Encryption Disabled. Database decrypted."
+        "encrypt_disabled": "Encryption Disabled. Database decrypted.",
+        "desc_send_to": "Email Report (Interactive)",
+        "desc_send_backup_to": "Email from Backup (Interactive)",
+        "email_subject": "Work Report",
+        "email_body_prompt": "Enter email body text",
+        "email_sent_auto": "Email client opened with attachment.",
+        "email_manual_hint": "If it didn't open, please compose email manually and attach:"
     },
     "ES": {
         "error_critical_dir": "ERROR CRÍTICO: No se puede crear el directorio de datos",
@@ -191,7 +197,13 @@ TRANSLATIONS = {
         "encrypt_key_saved": "Clave guardada. No la pierdas si mueves los datos.",
         "encrypt_warning_wipe": "ADVERTENCIA: Cambiar la clave requiere borrar datos o re-encriptar. Este comando borra datos por seguridad. ¿Continuar?",
         "encrypt_enabled": "Encriptación Activada. Base de datos encriptada.",
-        "encrypt_disabled": "Encriptación Desactivada. Base de datos desencriptada."
+        "encrypt_disabled": "Encriptación Desactivada. Base de datos desencriptada.",
+        "desc_send_to": "Enviar Reporte (Email)",
+        "desc_send_backup_to": "Enviar desde Backup (Email)",
+        "email_subject": "Reporte de Trabajo",
+        "email_body_prompt": "Ingresa el texto del correo",
+        "email_sent_auto": "Cliente de correo abierto con adjunto.",
+        "email_manual_hint": "Si no abrió, por favor adjunta manualmente:"
     },
     "FR": {
         "error_critical_dir": "ERREUR CRITIQUE: Impossible de créer le répertoire",
@@ -288,7 +300,13 @@ TRANSLATIONS = {
         "encrypt_key_saved": "Clé sauvegardée. Ne la perdez pas.",
         "encrypt_warning_wipe": "ATTENTION: Changer la clé nécessite d'effacer les données. Continuer?",
         "encrypt_enabled": "Chiffrement Activé.",
-        "encrypt_disabled": "Chiffrement Désactivé."
+        "encrypt_disabled": "Chiffrement Désactivé.",
+        "desc_send_to": "Envoyer Rapport (Email)",
+        "desc_send_backup_to": "Envoyer depuis Backup (Email)",
+        "email_subject": "Rapport de Travail",
+        "email_body_prompt": "Entrez le texte du courriel",
+        "email_sent_auto": "Client de messagerie ouvert.",
+        "email_manual_hint": "Si non ouvert, veuillez joindre manuellement:"
     },
     "PT": {
         "error_critical_dir": "ERRO CRÍTICO: Não é possível criar diretório",
@@ -385,7 +403,13 @@ TRANSLATIONS = {
         "encrypt_key_saved": "Chave salva. Não a perca.",
         "encrypt_warning_wipe": "AVISO: Mudar a chave requer apagar dados. Continuar?",
         "encrypt_enabled": "Criptografia Ativada.",
-        "encrypt_disabled": "Criptografia Desativada."
+        "encrypt_disabled": "Criptografia Desativada.",
+        "desc_send_to": "Enviar Relatório (Email)",
+        "desc_send_backup_to": "Enviar do Backup (Email)",
+        "email_subject": "Relatório de Trabalho",
+        "email_body_prompt": "Digite o texto do email",
+        "email_sent_auto": "Cliente de email aberto.",
+        "email_manual_hint": "Se não abriu, anexe manualmente:"
     }
 }
 

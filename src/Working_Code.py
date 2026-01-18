@@ -595,12 +595,91 @@ def process_sessions(events):
     # For export, usually we export finished sessions.
     return sessions
 
+# --- Email & helpers ---
+import webbrowser
+import subprocess
+
+def generate_csv_file(sessions, start_date_str, end_date_str) -> str:
+    """Generate CSV file and return path."""
+    import csv
+    filename = f"work_history_{start_date_str.replace('/','')}-{end_date_str.replace('/','')}.csv"
+    file_path = os.getcwd() + "/" + filename
+    
+    with open(file_path, mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow([T('header_date'), T('header_start'), T('header_end'), T('header_duration'), T('header_desc')])
+        for s in sessions:
+            writer.writerow([s['date'], s['start'], s['end'], s['duration_str'], s['description']])
+    return file_path
+
+def generate_pdf_file(sessions, start_date_str, end_date_str) -> str:
+    """Generate PDF file and return path."""
+    from xhtml2pdf import pisa
+    total_sessions = len(sessions)
+    total_duration = sum([s['duration'] for s in sessions], timedelta())
+    
+    html = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Helvetica, sans-serif; padding: 20px; }}
+            h1 {{ color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }}
+            .summary {{ background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+            th {{ background: #007bff; color: white; padding: 10px; text-align: left; }}
+            td {{ padding: 8px; border-bottom: 1px solid #ddd; }}
+            tr:nth-child(even) {{ background-color: #f2f2f2; }}
+        </style>
+    </head>
+    <body>
+        <h1>{T('report_title')}</h1>
+        <p><strong>Range:</strong> {start_date_str} - {end_date_str}</p>
+        
+        <div class="summary">
+            <h3>{T('report_summary')}</h3>
+            <p><strong>{T('total_sessions')}:</strong> {total_sessions}</p>
+            <p><strong>{T('total_duration')}:</strong> {format_duration(total_duration)}</p>
+        </div>
+        
+        <table>
+            <tr>
+                <th>{T('header_date')}</th>
+                <th>{T('header_start')}</th>
+                <th>{T('header_end')}</th>
+                <th>{T('header_duration')}</th>
+                <th>{T('header_desc')}</th>
+            </tr>
+    """
+    
+    for s in sessions:
+        html += f"""
+            <tr>
+                <td>{s['date']}</td>
+                <td>{s['start']}</td>
+                <td>{s['end']}</td>
+                <td>{s['duration_str']}</td>
+                <td>{s['description']}</td>
+            </tr>
+        """
+        
+    html += """
+        </table>
+    </body>
+    </html>
+    """
+    
+    filename = f"work_report_{start_date_str.replace('/','')}-{end_date_str.replace('/','')}.pdf"
+    file_path = os.getcwd() + "/" + filename
+    
+    with open(file_path, "wb") as pdf_file:
+        pisa.CreatePDF(html, dest=pdf_file)
+        
+    return file_path
+
 @app.command(name="EXPORT-CSV")
 def export_csv(start_date_str: str, end_date_str: str):
     """Export work history to CSV."""
     init_db()
-    import csv
-    
     try:
         start_date = parse_date(start_date_str)
         end_date = parse_date(end_date_str)
@@ -616,17 +695,8 @@ def export_csv(start_date_str: str, end_date_str: str):
         conn.close()
         
         sessions = process_sessions(events)
-        
-        filename = f"work_history_{start_date.strftime('%Y%m%d')}-{end_date.strftime('%Y%m%d')}.csv"
-        file_path = os.getcwd() + "/" + filename
-        
-        with open(file_path, mode='w', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-            writer.writerow([T('header_date'), T('header_start'), T('header_end'), T('header_duration'), T('header_desc')])
-            for s in sessions:
-                writer.writerow([s['date'], s['start'], s['end'], s['duration_str'], s['description']])
-                
-        console.print(Panel(f"{T('export_csv_success')}:\n[blue]{file_path}[/blue] 📊", border_style="green"))
+        path = generate_csv_file(sessions, start_date_str, end_date_str)
+        console.print(Panel(f"{T('export_csv_success')}:\n[blue]{path}[/blue] 📊", border_style="green"))
 
     except Exception as e:
         console.print(Panel(f"[bold red]Error: {e}[/bold red]", border_style="red"))
@@ -635,8 +705,6 @@ def export_csv(start_date_str: str, end_date_str: str):
 def export_pdf(start_date_str: str, end_date_str: str):
     """Export work history to PDF."""
     init_db()
-    from xhtml2pdf import pisa
-    
     try:
         start_date = parse_date(start_date_str)
         end_date = parse_date(end_date_str)
@@ -652,73 +720,155 @@ def export_pdf(start_date_str: str, end_date_str: str):
         conn.close()
         
         sessions = process_sessions(events)
-        total_sessions = len(sessions)
-        total_duration = sum([s['duration'] for s in sessions], timedelta())
-        
-        # HTML Template
-        html = f"""
-        <html>
-        <head>
-            <style>
-                body {{ font-family: Helvetica, sans-serif; padding: 20px; }}
-                h1 {{ color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }}
-                .summary {{ background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
-                table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-                th {{ background: #007bff; color: white; padding: 10px; text-align: left; }}
-                td {{ padding: 8px; border-bottom: 1px solid #ddd; }}
-                tr:nth-child(even) {{ background-color: #f2f2f2; }}
-            </style>
-        </head>
-        <body>
-            <h1>{T('report_title')}</h1>
-            <p><strong>Range:</strong> {start_date_str} - {end_date_str}</p>
-            
-            <div class="summary">
-                <h3>{T('report_summary')}</h3>
-                <p><strong>{T('total_sessions')}:</strong> {total_sessions}</p>
-                <p><strong>{T('total_duration')}:</strong> {format_duration(total_duration)}</p>
-            </div>
-            
-            <table>
-                <tr>
-                    <th>{T('header_date')}</th>
-                    <th>{T('header_start')}</th>
-                    <th>{T('header_end')}</th>
-                    <th>{T('header_duration')}</th>
-                    <th>{T('header_desc')}</th>
-                </tr>
-        """
-        
-        for s in sessions:
-            html += f"""
-                <tr>
-                    <td>{s['date']}</td>
-                    <td>{s['start']}</td>
-                    <td>{s['end']}</td>
-                    <td>{s['duration_str']}</td>
-                    <td>{s['description']}</td>
-                </tr>
-            """
-            
-        html += """
-            </table>
-        </body>
-        </html>
-        """
-        
-        filename = f"work_report_{start_date.strftime('%Y%m%d')}-{end_date.strftime('%Y%m%d')}.pdf"
-        file_path = os.getcwd() + "/" + filename
-        
-        with open(file_path, "wb") as pdf_file:
-            pisa_status = pisa.CreatePDF(html, dest=pdf_file)
-            
-        if pisa_status.err:
-            console.print(Panel(f"[bold red]PDF Generation Error[/bold red]", border_style="red"))
-        else:
-            console.print(Panel(f"{T('export_pdf_success')}:\n[blue]{file_path}[/blue] 📄", border_style="green"))
+        path = generate_pdf_file(sessions, start_date_str, end_date_str)
+        console.print(Panel(f"{T('export_pdf_success')}:\n[blue]{path}[/blue] 📄", border_style="green"))
 
     except Exception as e:
-        console.print(Panel(f"[bold red]Error: {e}[/bold red]", border_style="red"))
+         console.print(Panel(f"[bold red]Error: {e}[/bold red]", border_style="red"))
+
+def open_email_client(file_path: str, subject: str, body: str):
+    """Open default email client with attachment."""
+    import urllib.parse
+    
+    # Try xdg-email (Linux)
+    if SYSTEM_PLATFORM == "Linux" and shutil.which("xdg-email"):
+        try:
+            subprocess.call(["xdg-email", "--subject", subject, "--body", body, "--attach", file_path])
+            console.print(Panel(f"[green]{T('email_sent_auto')}[/green]", border_style="green"))
+            return
+        except Exception:
+            pass # Fallback
+
+    # Generic Mailto (Can't attach file automatically in many cases)
+    # We copy path to clipboard or just show it?
+    params = {
+        "subject": subject,
+        "body": f"{body}\n\n[Attachment: {os.path.basename(file_path)}]"
+    }
+    qs = urllib.parse.urlencode(params).replace("+", "%20")
+    mailto = f"mailto:?{qs}"
+    
+    webbrowser.open(mailto)
+    console.print(Panel(f"[yellow]{T('email_manual_hint')}[/yellow]\n[bold]{file_path}[/bold]", border_style="yellow"))
+
+def get_events_from_db(db_path, start_date_str, end_date_str):
+    """Generic fetcher."""
+    start_date = parse_date(start_date_str)
+    end_date = parse_date(end_date_str)
+    s_iso = start_date.strftime("%Y-%m-%dT00:00:00")
+    e_iso = (end_date + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00")
+    
+    # Connection might need decrypt logic if using backup?
+    # Actually decrypt logic is in 'process_sessions' which calls 'decrypt_text'
+    # 'decrypt_text' uses global FERNET.
+    # If we are using a backup, we assume the CURRENT key works for it (or it was decrypted before backup? no).
+    # If backup was encrypted with OLD key, we can't decrypt it unless we have that key.
+    # Assumption: User uses current key.
+    
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute(
+             "SELECT timestamp, event_type, description FROM events WHERE timestamp >= ? AND timestamp < ? ORDER BY timestamp ASC",
+            (s_iso, e_iso)
+        )
+        events = [dict(row) for row in cur.fetchall()]
+        conn.close()
+        return events
+    except Exception as e:
+        console.print(f"[red]DB Error: {e}[/red]")
+        return []
+
+@app.command(name="SEND-TO")
+def send_to():
+    """Generate report and email it."""
+    init_db()
+    
+    # Interactive Prompts
+    console.print(f"[bold]{T('language_select')} Range:[/bold]") # Reuse? No, Custom prompt
+    console.print("1. Today")
+    console.print("2. This Month")
+    console.print("3. Custom Range")
+    
+    choice = typer.prompt("Select", default="1")
+    today = datetime.now()
+    
+    if choice == "1":
+        s_str = today.strftime("%d/%m/%Y")
+        e_str = s_str
+    elif choice == "2":
+        s_str = today.strftime("01/%m/%Y")
+        # End of month? 
+        import calendar
+        last_day = calendar.monthrange(today.year, today.month)[1]
+        e_str = f"{last_day}/{today.month:02}/{today.year}"
+    else:
+        s_str = typer.prompt("Start (dd/mm/yyyy)")
+        e_str = typer.prompt("End (dd/mm/yyyy)")
+
+    # Format
+    fmt = typer.prompt("Format (CSV/PDF)", default="PDF").upper()
+    
+    # Events
+    events = get_events_from_db(DB_PATH, s_str, e_str)
+    if not events:
+        console.print("[yellow]No data found.[/yellow]")
+        return
+
+    sessions = process_sessions(events)
+    
+    if fmt == "CSV":
+        fpath = generate_csv_file(sessions, s_str, e_str)
+    else:
+        fpath = generate_pdf_file(sessions, s_str, e_str)
+        
+    subject = f"{T('email_subject')} ({s_str} - {e_str})"
+    body = typer.prompt(T('email_body_prompt'), default="Please find the attached work report.")
+    
+    open_email_client(fpath, subject, body)
+
+@app.command(name="SEND-BACKUP-TO")
+def send_backup_to():
+    """Email report from a backup file."""
+    if not BACKUP_DIR.exists():
+        console.print(f"[red]{T('backup_not_found')}[/red]")
+        return
+        
+    backups = sorted(BACKUP_DIR.glob("*.db"), key=os.path.getmtime, reverse=True)
+    if not backups:
+        console.print(f"[red]{T('backup_not_found')}[/red]")
+        return
+
+    console.print("[bold]Select Backup:[/bold]")
+    for i, b in enumerate(backups[:10]):
+        console.print(f"{i+1}. {b.name}")
+        
+    idx = typer.prompt("Number", type=int)
+    if idx < 1 or idx > len(backups):
+        return
+    
+    target_db = backups[idx-1]
+    
+    # Range
+    s_str = typer.prompt("Start (dd/mm/yyyy)", default="01/01/2024")
+    e_str = typer.prompt("End (dd/mm/yyyy)", default=datetime.now().strftime("%d/%m/%Y"))
+    
+    # Format
+    fmt = typer.prompt("Format (CSV/PDF)", default="PDF").upper()
+    
+    # Get Data
+    events = get_events_from_db(target_db, s_str, e_str)
+    sessions = process_sessions(events)
+    
+    if fmt == "CSV":
+        fpath = generate_csv_file(sessions, s_str, e_str)
+    else:
+        fpath = generate_pdf_file(sessions, s_str, e_str)
+
+    subject = f"{T('email_subject')} (Backup: {target_db.name})"
+    body = typer.prompt(T('email_body_prompt'), default="Attached backup report.")
+    
+    open_email_client(fpath, subject, body)
 
 
 # --- Backup Features ---
@@ -1018,6 +1168,8 @@ def main(ctx: typer.Context):
             ("AI-SEL-ASK-RANGE-TIME", "desc_ai_range_ask", "work AI-SEL-ASK-RANGE-TIME d1 d2 \"Query\""),
             ("EXPORT-CSV", "desc_export_csv", "work EXPORT-CSV d1 d2"),
             ("EXPORT-PDF", "desc_export_pdf", "work EXPORT-PDF d1 d2"),
+            ("SEND-TO", "desc_send_to", "work SEND-TO"),
+            ("SEND-BACKUP-TO", "desc_send_backup_to", "work SEND-BACKUP-TO"),
             ("INIT-ENCRYPTION", "desc_init_encryption", "work INIT-ENCRYPTION"),
             ("GET-KEY", "desc_get_key", "work GET-KEY"),
             ("CHANGE-KEY", "desc_change_key", "work CHANGE-KEY"),

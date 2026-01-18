@@ -21,13 +21,14 @@ A beautiful, robust, and highly optimized time tracking tool for the terminal. W
 Choose your preferred method:
 
 ### 🐧 Linux / 🍎 macOS (Recommended)
+1.  **Clone or Download** this repository.
+2.  Run the installer:
+    The interactive installer will detect your shell (Bash/Zsh/Fish), create a virtual environment, and set up the alias.
 
-The interactive installer will detect your shell (Bash/Zsh/Fish), create a virtual environment, and set up the alias.
-
-```bash
-./init.sh
-```
-*Supports: Arch, Manjaro, Debian, Ubuntu, Fedora, macOS*
+    ```bash
+    ./init.sh
+    ```
+    *Supports: Arch, Manjaro, Debian, Ubuntu, Fedora, macOS*
 
 ### 🪟 Windows
 
@@ -127,6 +128,16 @@ work EXPORT-CSV 01/01/2026 31/01/2026
 # Export to PDF (Beautiful Report)
 work EXPORT-PDF 01/01/2026 31/01/2026
 ```
+
+### 📧 Email Reporting (New!)
+Send reports directly to your email client (Thunderbird, Outlook, etc.).
+
+| Command | Action |
+| :--- | :--- |
+| `work SEND-TO` | Generate & Email report (Interactive) 📧 |
+| `work SEND-BACKUP-TO` | Email report from a specific **Backup** 📦 |
+
+*Supports auto-attachment on Linux (`xdg-email`). On other OSs, it opens a draft and asks you to attach the file manually.*
 
 ### 9. 💾 Backup Management (Advanced)
 By default, the system creates backups automatically (Frequency: MONTHLY).
