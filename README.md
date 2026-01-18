@@ -31,11 +31,17 @@ The interactive installer will detect your shell (Bash/Zsh/Fish), create a virtu
 
 ### 🪟 Windows
 
-Run the PowerShell installer to set up the environment and alias:
+1.  **PowerShell (Recommended)**:
+    Run the installer to set up the environment and add the `work` alias permanently:
+    ```powershell
+    .\install.ps1
+    ```
 
-```powershell
-.\install.ps1
-```
+2.  **Command Prompt (CMD)**:
+    You can also run the tool directly using the batch runner:
+    ```cmd
+    scripts\working_runner.bat ON
+    ```
 
 ### 🐳 Docker (Portable)
 
@@ -70,9 +76,8 @@ Once installed, just use the `work` command.
 | `work CLEAR-ALL` | Wipe data 🗑️ | `work CLEAR-ALL` |
 
 
-### 6. 🌍 Multi-language / Multi-idioma
+### 6. 🌍 Multi-language Support
 The tool supports **English (EN), Spanish (ES), French (FR), and Portuguese (PT)**.
-El sistema soporta **Inglés, Español, Francés y Portugués**.
 
 ```bash
 work LANG      # Check current language
