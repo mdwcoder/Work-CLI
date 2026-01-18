@@ -2,10 +2,17 @@
 
 # Get the absolute path of the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RUNNER_PATH="$SCRIPT_DIR/working_runner.sh"
+# Runner is now in scripts/
+RUNNER_PATH="$SCRIPT_DIR/scripts/working_runner.sh"
+BACKUP_DIR="$SCRIPT_DIR/backup"
 
 # Ensure the runner is executable
-chmod +x "$RUNNER_PATH"
+if [ -f "$RUNNER_PATH" ]; then
+    chmod +x "$RUNNER_PATH"
+else
+    echo "Error: runner script not found at $RUNNER_PATH"
+    exit 1
+fi
 
 echo "╔════════════════════════════════════════╗"
 echo "║      Working_Code Auto-Installer       ║"
@@ -13,11 +20,22 @@ echo "╚═══════════════════════�
 echo ""
 echo "This script will add an alias to your shell configuration."
 echo "Path identified: $RUNNER_PATH"
+echo "Backup location: $BACKUP_DIR"
 echo ""
 
 # Alias naming
 ALIAS_NAME="work"
 echo "Alias to be added: $ALIAS_NAME"
+echo ""
+echo "--------------------------------------------------------"
+echo "HELP:"
+echo "This installer prepares your environment for the Time Tracker."
+echo "It effectively does the following:"
+echo "1. Checks your shell type."
+echo "2. Adds an alias '$ALIAS_NAME' to your config file."
+echo "3. The alias executes '$RUNNER_PATH'."
+echo "4. That script manages the Python venv automatically."
+echo "--------------------------------------------------------"
 
 # Select Shell
 echo ""
@@ -46,11 +64,8 @@ case $SHELL_OPT in
     3)
         SHELL_NAME="Fish"
         CONFIG_FILE="$HOME/.config/fish/config.fish"
-        # Fish syntax compatible with recent versions, or universal function
-        # Simple alias: alias name "command"
         ALIAS_CMD="alias $ALIAS_NAME '$RUNNER_PATH'"
         
-        # Check if dir exists
         if [ ! -d "$HOME/.config/fish" ]; then
             echo "Warning: Fish config directory not found."
         fi

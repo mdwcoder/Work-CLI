@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Data
+*.db
+*.db_*
+data/*.db
+data/*.db-journal
+
+# Backups
+# Ignore everything in backup except .gitkeep (if we create it)
+backup/*
+!backup/.gitkeep
