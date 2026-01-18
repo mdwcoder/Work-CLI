@@ -14,6 +14,7 @@ import typer
 import sqlite3
 import shutil
 import os
+import locale
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -23,6 +24,7 @@ from rich.align import Align
 from rich.traceback import install
 from pathlib import Path
 from typing import Optional
+from translations import get_text, TRANSLATIONS
 
 # Install rich traceback handler for prettier unhandled exceptions
 install(show_locals=False)
@@ -47,19 +49,51 @@ ERROR_STYLE = "bold red"
 app = typer.Typer(help="Visual Time Tracker for Terminal", add_completion=False)
 console = Console()
 
+# --- Config & Helpers ---
+
+def get_language() -> str:
+    """Determine language: DB -> System -> Default (EN)."""
+    # 1. Check DB
+    try:
+        if DB_PATH.exists():
+            lang = get_config("language")
+            if lang and lang in TRANSLATIONS:
+                return lang
+    except Exception:
+        pass # Fallback if DB invalid or error
+
+    # 2. Check System
+    try:
+        sys_lang, _ = locale.getdefaultlocale()
+        if sys_lang:
+             prefix = sys_lang.split("_")[0].upper()
+             # Map common codes
+             if prefix in ["ES", "EN", "FR", "PT"]:
+                 return prefix
+             if prefix == "BR": return "PT" # Portuguese Brazil
+    except Exception:
+        pass
+        
+    # 3. Default
+    return "EN"
+
+def T(key: str) -> str:
+    """Short helper to translate text based on current context."""
+    return get_text(key, get_language())
+
 def check_db_permissions():
     """Ensure we have write permissions to the database directory."""
     if not DB_PATH.parent.exists():
         try:
             DB_PATH.parent.mkdir(parents=True, exist_ok=True)
         except PermissionError:
-             console.print(f"[{ERROR_STYLE}]CRITICAL ERROR:[/{ERROR_STYLE}] Cannot create data directory at {DB_PATH.parent}")
-             console.print("Please check file permissions or run with appropriate privileges.")
+             console.print(f"[{ERROR_STYLE}]{T('error_critical_dir')}:[/{ERROR_STYLE}] {DB_PATH.parent}")
+             console.print(T('check_permissions'))
              sys.exit(1)
              
     if DB_PATH.exists() and not os.access(DB_PATH, os.W_OK):
-        console.print(f"[{ERROR_STYLE}]CRITICAL ERROR:[/{ERROR_STYLE}] Database at {DB_PATH} is not writable.")
-        console.print("Please check file owners and permissions.")
+        console.print(f"[{ERROR_STYLE}]{T('error_critical_write')}:[/{ERROR_STYLE}] {DB_PATH}")
+        console.print(T('check_permissions'))
         sys.exit(1)
 
 def get_db_connection():
@@ -69,12 +103,13 @@ def get_db_connection():
         conn.row_factory = sqlite3.Row
         return conn
     except sqlite3.OperationalError as e:
-        console.print(f"[{ERROR_STYLE}]Database Error:[/{ERROR_STYLE}] {e}")
-        console.print(f"[{WARNING_STYLE}]Hint:[/{WARNING_STYLE}] The database might be locked by another process or permissions are denied.")
+        console.print(f"[{ERROR_STYLE}]{T('database_error')}:[/{ERROR_STYLE}] {e}")
+        console.print(f"[{WARNING_STYLE}]{T('database_locked_hint')}[/{WARNING_STYLE}]")
         raise typer.Exit(code=1)
 
 def init_db():
     conn = get_db_connection()
+    # Events Table
     conn.execute('''
         CREATE TABLE IF NOT EXISTS events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,8 +117,34 @@ def init_db():
             event_type TEXT NOT NULL
         )
     ''')
+    # Config Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    ''')
     conn.commit()
     conn.close()
+
+def get_config(key: str) -> Optional[str]:
+    conn = get_db_connection()
+    try:
+        cursor = conn.execute("SELECT value FROM config WHERE key=?", (key,))
+        row = cursor.fetchone()
+        return row['value'] if row else None
+    except Exception:
+        return None
+    finally:
+        conn.close()
+
+def set_config(key: str, value: str):
+    conn = get_db_connection()
+    conn.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
+    conn.commit()
+    conn.close()
+
+# --- Core Logic ---
 
 def get_today_str():
     return datetime.now().strftime("%Y-%m-%d")
@@ -92,7 +153,7 @@ def parse_date(date_str: str) -> datetime:
     try:
         return datetime.strptime(date_str, "%d/%m/%Y")
     except ValueError:
-        console.print(f"[{ERROR_STYLE}]Error:[/{ERROR_STYLE}] Invalid date format. Please use [{WARNING_STYLE}]dd/mm/yyyy[/{WARNING_STYLE}].")
+        console.print(f"[{ERROR_STYLE}]{T('invalid_date_format')}[/{ERROR_STYLE}]")
         raise typer.Exit(code=1)
 
 def get_active_session_start(conn) -> Optional[datetime]:
@@ -122,13 +183,15 @@ def print_banner(subtitle: str = ""):
     
     console.print(Panel(grid, style=BORDER_STYLE, border_style=BORDER_STYLE, box=box.HEAVY))
 
+# --- Commands ---
+
 @app.command(name="ON")
 def start_timer():
     """Start the timer."""
     init_db()
     conn = get_db_connection()
     if get_active_session_start(conn):
-        console.print(Panel(Align.center("[bold yellow]Timer is already running![/bold yellow] ⏳", vertical="middle"), 
+        console.print(Panel(Align.center(f"[bold yellow]{T('timer_already_running')}[/bold yellow]", vertical="middle"), 
                           title="Info", border_style="yellow", box=box.ROUNDED, padding=(1, 2)))
         conn.close()
         return
@@ -138,7 +201,7 @@ def start_timer():
     conn.commit()
     conn.close()
     
-    console.print(Panel(Align.center(f"[bold green]TIMER STARTED[/bold green]\nTime: [cyan]{now.strftime('%H:%M:%S')}[/cyan] 🚀", vertical="middle"), 
+    console.print(Panel(Align.center(f"[bold green]{T('timer_started')}[/bold green]\nTime: [cyan]{now.strftime('%H:%M:%S')}[/cyan] 🚀", vertical="middle"), 
                       title="Success", border_style="green", box=box.HEAVY, padding=(1, 5)))
 
 @app.command(name="OFF")
@@ -148,7 +211,7 @@ def stop_timer():
     conn = get_db_connection()
     start_time = get_active_session_start(conn)
     if not start_time:
-        console.print(Panel(Align.center("[bold yellow]Timer is NOT running![/bold yellow] 🛑", vertical="middle"), 
+        console.print(Panel(Align.center(f"[bold yellow]{T('timer_not_running')}[/bold yellow]", vertical="middle"), 
                           title="Info", border_style="yellow", box=box.ROUNDED, padding=(1, 2)))
         conn.close()
         return
@@ -160,9 +223,9 @@ def stop_timer():
     conn.close()
     
     text = Text()
-    text.append("TIMER STOPPED\n", style="bold red")
-    text.append(f"Stopped at: {now.strftime('%H:%M:%S')}\n", style="dim white")
-    text.append(f"Duration:   {format_duration(duration)}", style="bold white")
+    text.append(f"{T('timer_stopped')}\n", style="bold red")
+    text.append(f"{T('stopped_at')}: {now.strftime('%H:%M:%S')}\n", style="dim white")
+    text.append(f"{T('duration')}:   {format_duration(duration)}", style="bold white")
     
     console.print(Panel(Align.center(text, vertical="middle"), 
                       title="Stopped", border_style="red", box=box.HEAVY, padding=(1, 5)))
@@ -177,10 +240,10 @@ def current_time():
 
     if start_time:
         duration = calculate_duration(start_time, datetime.now())
-        console.print(Panel(Align.center(f"Current Session:\n[bold cyan]{format_duration(duration)}[/bold cyan] ⏱️", vertical="middle"), 
-                          title="Active Timer", border_style="cyan", box=box.ROUNDED, padding=(1, 4)))
+        console.print(Panel(Align.center(f"{T('current_session')}:\n[bold cyan]{format_duration(duration)}[/bold cyan] ⏱️", vertical="middle"), 
+                          title=T('active_timer'), border_style="cyan", box=box.ROUNDED, padding=(1, 4)))
     else:
-        console.print(Panel(Align.center("[dim]Timer is inactive.[/dim] 💤", vertical="middle"), title="Status", border_style="dim", box=box.ROUNDED))
+        console.print(Panel(Align.center(f"[dim]{T('timer_inactive')}[/dim]", vertical="middle"), title="Status", border_style="dim", box=box.ROUNDED))
 
 def calculate_daily_total(target_date: datetime) -> timedelta:
     conn = get_db_connection()
@@ -221,19 +284,19 @@ def time_today():
     total = calculate_daily_total(now)
     
     console.print(Panel(Align.center(
-        f"Total Time Today ([cyan]{now.strftime('%d/%m/%Y')}[/cyan])\n[bold green]{format_duration(total)}[/bold green] 📅", vertical="middle"), 
-        title="Daily Summary", border_style="green", box=box.DOUBLE, padding=(1, 5)))
+        f"{T('total_time_today')} ([cyan]{now.strftime('%d/%m/%Y')}[/cyan])\n[bold green]{format_duration(total)}[/bold green] 📅", vertical="middle"), 
+        title=T('daily_summary'), border_style="green", box=box.DOUBLE, padding=(1, 5)))
 
 @app.command(name="DB")
 def show_db_path():
     """Show database path."""
-    console.print(Panel(f"[bold]Database Path:[/bold]\n[blue]{DB_PATH}[/blue] 📂", title="Configuration", border_style="blue", box=box.ROUNDED))
+    console.print(Panel(f"[bold]{T('database_path')}:[/bold]\n[blue]{DB_PATH}[/blue] 📂", title="Configuration", border_style="blue", box=box.ROUNDED))
 
 @app.command(name="BACKUP")
 def backup_db():
     """Backup the database."""
     if not DB_PATH.exists():
-        console.print(Panel("[bold red]Database does not exist yet![/bold red]", border_style="red"))
+        console.print(Panel(f"[bold red]{T('database_exist_error')}[/bold red]", border_style="red"))
         return
     
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
@@ -244,7 +307,7 @@ def backup_db():
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
         
     shutil.copy(DB_PATH, backup_path)
-    console.print(Panel(f"Backup created: [bold green]{backup_name}[/bold green]\nLocation: [blue]{backup_path}[/blue] 💾", 
+    console.print(Panel(f"{T('backup_created')}: [bold green]{backup_name}[/bold green]\n{T('location')}: [blue]{backup_path}[/blue] 💾", 
                       title="Backup Success", border_style="green", box=box.ROUNDED))
 
 @app.command(name="TIME-SELECT")
@@ -254,8 +317,8 @@ def time_select(date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
     target_date = parse_date(date_str)
     total = calculate_daily_total(target_date)
     console.print(Panel(Align.center(
-        f"Total Time on [cyan]{date_str}[/cyan]\n[bold magenta]{format_duration(total)}[/bold magenta] 🗓️", vertical="middle"), 
-        title="Historical Data", border_style="magenta", box=box.ROUNDED))
+        f"{T('total_time_on')} [cyan]{date_str}[/cyan]\n[bold magenta]{format_duration(total)}[/bold magenta] 🗓️", vertical="middle"), 
+        title=T('historical_data'), border_style="magenta", box=box.ROUNDED))
 
 @app.command(name="TIME-RANGE")
 def time_range(start_date_str: str = typer.Argument(..., metavar="dd/mm/yyyy"), end_date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
@@ -271,9 +334,9 @@ def time_range(start_date_str: str = typer.Argument(..., metavar="dd/mm/yyyy"), 
         current_date += timedelta(days=1)
         
     console.print(Panel(Align.center(
-        f"Range: [cyan]{start_date_str}[/cyan] to [cyan]{end_date_str}[/cyan]\n"
-        f"Total Time: [bold orange1]{format_duration(total_duration)}[/bold orange1] 📊", vertical="middle"),
-        title="Range Summary", border_style="orange1", box=box.ROUNDED, padding=(1, 5)))
+        f"Range: [cyan]{start_date_str}[/cyan] - [cyan]{end_date_str}[/cyan]\n"
+        f"{T('total_time')}: [bold orange1]{format_duration(total_duration)}[/bold orange1] 📊", vertical="middle"),
+        title=T('range_summary'), border_style="orange1", box=box.ROUNDED, padding=(1, 5)))
 
 @app.command(name="INIT-TIME")
 def init_time():
@@ -290,10 +353,10 @@ def init_time():
     
     if row:
         first_time = datetime.fromisoformat(row['timestamp'])
-        console.print(Panel(Align.center(f"First Start Today:\n[bold cyan]{first_time.strftime('%H:%M:%S')}[/bold cyan] 🌅", vertical="middle"), 
+        console.print(Panel(Align.center(f"{T('first_start_today')}:\n[bold cyan]{first_time.strftime('%H:%M:%S')}[/bold cyan] 🌅", vertical="middle"), 
                           title="Start Time", border_style="cyan", box=box.ROUNDED))
     else:
-        console.print(Panel(Align.center("[dim]No sessions started today.[/dim]", vertical="middle"), title="Start Time", border_style="dim"))
+        console.print(Panel(Align.center(f"[dim]{T('no_sessions_today')}[/dim]", vertical="middle"), title="Start Time", border_style="dim"))
 
 @app.command(name="INIT-TIME_WHEN")
 def init_time_when(date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
@@ -312,29 +375,56 @@ def init_time_when(date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
     
     if row:
         first_time = datetime.fromisoformat(row['timestamp'])
-        console.print(Panel(Align.center(f"First Start on [cyan]{date_str}[/cyan]:\n[bold cyan]{first_time.strftime('%H:%M:%S')}[/bold cyan] 🗓️", vertical="middle"), 
+        console.print(Panel(Align.center(f"{T('first_start_on')} [cyan]{date_str}[/cyan]:\n[bold cyan]{first_time.strftime('%H:%M:%S')}[/bold cyan] 🗓️", vertical="middle"), 
                           title="Historical Start Time", border_style="cyan", box=box.ROUNDED))
     else:
-        console.print(Panel(f"[dim]No sessions found on {date_str}.[/dim]", title="Historical Start Time", border_style="dim"))
+        console.print(Panel(f"[dim]{T('no_sessions_found')} {date_str}.[/dim]", title="Historical Start Time", border_style="dim"))
 
 
 @app.command(name="CLEAR-ALL")
 def clear_all():
     """Clear all database data."""
     if not DB_PATH.exists():
-        console.print(Panel("[yellow]Database empty.[/yellow]", border_style="yellow"))
+        console.print(Panel(f"[yellow]{T('database_empty')}[/yellow]", border_style="yellow"))
         return
         
-    confirm = typer.confirm("Are you sure you want to delete ALL tracking data? (Backups are safe)")
+    confirm = typer.confirm(T('clear_confirmation'))
     if not confirm:
-        console.print("Aborted.")
+        console.print(T('aborted'))
         raise typer.Abort()
         
     conn = get_db_connection()
     conn.execute("DELETE FROM events")
     conn.commit()
     conn.close()
-    console.print(Panel("[bold red]Database CLEARED.[/bold red] 🗑️", title="Warning", border_style="red", box=box.HEAVY))
+    console.print(Panel(f"[bold red]{T('database_cleared')}[/bold red]", title="Warning", border_style="red", box=box.HEAVY))
+
+@app.command(name="LANG")
+def show_lang():
+    """Show current language."""
+    init_db()
+    lang = get_language()
+    console.print(Panel(Align.center(f"{T('language_current')}: [bold cyan]{lang}[/bold cyan] 🌍", vertical="middle"), 
+                      title="Configuration", border_style="blue", box=box.ROUNDED))
+
+@app.command(name="LANG-SET")
+def set_lang_command():
+    """Set the application language."""
+    init_db()
+    current = get_language()
+    
+    console.print(f"[bold]{T('language_select')}:[/bold]")
+    for code in TRANSLATIONS.keys():
+        marker = "(*)" if code == current else "   "
+        console.print(f"{marker} {code}")
+        
+    choice = typer.prompt("Code").upper()
+    if choice in TRANSLATIONS:
+        set_config("language", choice)
+        new_lang_text = TRANSLATIONS[choice]["language_updated"]
+        console.print(Panel(f"[bold green]{new_lang_text} {choice}![/bold green]", border_style="green"))
+    else:
+        console.print(f"[red]Invalid code. Available: {', '.join(TRANSLATIONS.keys())}[/red]")
 
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
@@ -343,27 +433,35 @@ def main(ctx: typer.Context):
     """
     if ctx.invoked_subcommand is None:
         # Custom Help
-        print_banner("Visual Time Tracker")
+        print_banner(T("welcome_banner"))
         
         table = Table(box=box.ROUNDED, header_style="bold magenta", border_style="bright_blue", show_lines=True)
-        table.add_column("Command", style="cyan bold", no_wrap=True)
-        table.add_column("Description", style="white")
-        table.add_column("Usage", style="dim italic")
+        table.add_column(T("col_command"), style="cyan bold", no_wrap=True)
+        table.add_column(T("col_desc"), style="white")
+        table.add_column(T("col_usage"), style="dim italic")
 
-        table.add_row("ON", "Start the timer", "work ON")
-        table.add_row("OFF", "Stop the timer", "work OFF")
-        table.add_row("TIME", "Current session duration", "work TIME")
-        table.add_row("TIME-TODAY", "Total time worked today", "work TIME-TODAY")
-        table.add_row("DB", "Show database path", "work DB")
-        table.add_row("BACKUP", "Backup database", "work BACKUP")
-        table.add_row("TIME-SELECT", "Time for specific day", "work TIME-SELECT dd/mm/yyyy")
-        table.add_row("TIME-RANGE", "Time for date range", "work TIME-RANGE d1/m1... d2/m2...")
-        table.add_row("INIT-TIME", "First start time today", "work INIT-TIME")
-        table.add_row("INIT-TIME_WHEN", "First start on specific day", "work INIT-TIME_WHEN dd/mm/yyyy")
-        table.add_row("CLEAR-ALL", "Clear all data", "work CLEAR-ALL")
+        # Map commands to description keys
+        cmds = [
+            ("ON", "desc_on", "work ON"),
+            ("OFF", "desc_off", "work OFF"),
+            ("TIME", "desc_time", "work TIME"),
+            ("TIME-TODAY", "desc_time_today", "work TIME-TODAY"),
+            ("DB", "desc_db", "work DB"),
+            ("BACKUP", "desc_backup", "work BACKUP"),
+            ("TIME-SELECT", "desc_time_select", "work TIME-SELECT dd/mm/yyyy"),
+            ("TIME-RANGE", "desc_time_range", "work TIME-RANGE d1/m1..."),
+            ("INIT-TIME", "desc_init_time", "work INIT-TIME"),
+            ("INIT-TIME_WHEN", "desc_init_time_when", "work INIT-TIME_WHEN..."),
+            ("CLEAR-ALL", "desc_clear_all", "work CLEAR-ALL"),
+            ("LANG", "desc_lang", "work LANG"),
+            ("LANG-SET", "desc_lang_set", "work LANG-SET"),
+        ]
+
+        for cmd, desc_key, usage in cmds:
+            table.add_row(cmd, T(desc_key), usage)
         
         console.print(table)
-        console.print(Align.center("[dim]Use 'work [COMMAND] --help' for more info.[/dim]"))
+        console.print(Align.center(f"[dim]{T('help_footer')}[/dim]"))
 
 if __name__ == "__main__":
     try:
