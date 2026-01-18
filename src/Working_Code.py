@@ -114,9 +114,16 @@ def init_db():
         CREATE TABLE IF NOT EXISTS events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
-            event_type TEXT NOT NULL
+            event_type TEXT NOT NULL,
+            description TEXT
         )
     ''')
+    # Migration for existing DBs if needed
+    try:
+        conn.execute("ALTER TABLE events ADD COLUMN description TEXT")
+    except sqlite3.OperationalError:
+        pass # Column likely exists
+    
     # Config Table
     conn.execute('''
         CREATE TABLE IF NOT EXISTS config (
@@ -186,8 +193,8 @@ def print_banner(subtitle: str = ""):
 # --- Commands ---
 
 @app.command(name="ON")
-def start_timer():
-    """Start the timer."""
+def start_timer(description: str = typer.Argument(None)):
+    """Start the timer. Optional: Add a description."""
     init_db()
     conn = get_db_connection()
     if get_active_session_start(conn):
@@ -197,12 +204,17 @@ def start_timer():
         return
 
     now = datetime.now()
-    conn.execute("INSERT INTO events (timestamp, event_type) VALUES (?, ?)", (now.isoformat(), 'START'))
+    conn.execute("INSERT INTO events (timestamp, event_type, description) VALUES (?, ?, ?)", (now.isoformat(), 'START', description))
     conn.commit()
     conn.close()
     
     console.print(Panel(Align.center(f"[bold green]{T('timer_started')}[/bold green]\nTime: [cyan]{now.strftime('%H:%M:%S')}[/cyan] 🚀", vertical="middle"), 
                       title="Success", border_style="green", box=box.HEAVY, padding=(1, 5)))
+    
+    if not description:
+         console.print(Align.center(f"[dim yellow]{T('tip_use_description')}[/dim yellow]"))
+    else:
+         console.print(Align.center(f"[dim]Note: {description}[/dim]"))
 
 @app.command(name="OFF")
 def stop_timer():
@@ -552,6 +564,7 @@ def process_sessions(events):
     """
     sessions = []
     session_start = None
+    session_desc = None
     
     for ev in events:
         ts = datetime.fromisoformat(ev['timestamp'])
@@ -560,6 +573,7 @@ def process_sessions(events):
         if etype == 'START':
             if session_start is None:
                 session_start = ts
+                session_desc = ev.get('description', '') or ''
         elif etype == 'STOP':
             if session_start:
                 duration = ts - session_start
@@ -568,9 +582,11 @@ def process_sessions(events):
                     "start": session_start.strftime("%H:%M:%S"),
                     "end": ts.strftime("%H:%M:%S"),
                     "duration": duration, # Timedelta
-                    "duration_str": format_duration(duration)
+                    "duration_str": format_duration(duration),
+                    "description": session_desc
                 })
                 session_start = None
+                session_desc = None
             
     # Handle active session (optional: skip or mark as active)
     # For export, usually we export finished sessions.
@@ -590,7 +606,7 @@ def export_csv(start_date_str: str, end_date_str: str):
         
         conn = get_db_connection()
         cursor = conn.execute(
-            "SELECT timestamp, event_type FROM events WHERE timestamp >= ? AND timestamp < ? ORDER BY timestamp ASC",
+            "SELECT timestamp, event_type, description FROM events WHERE timestamp >= ? AND timestamp < ? ORDER BY timestamp ASC",
             (s_iso, e_iso)
         )
         events = [dict(row) for row in cursor.fetchall()]
@@ -603,9 +619,9 @@ def export_csv(start_date_str: str, end_date_str: str):
         
         with open(file_path, mode='w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow([T('header_date'), T('header_start'), T('header_end'), T('header_duration')])
+            writer.writerow([T('header_date'), T('header_start'), T('header_end'), T('header_duration'), T('header_desc')])
             for s in sessions:
-                writer.writerow([s['date'], s['start'], s['end'], s['duration_str']])
+                writer.writerow([s['date'], s['start'], s['end'], s['duration_str'], s['description']])
                 
         console.print(Panel(f"{T('export_csv_success')}:\n[blue]{file_path}[/blue] 📊", border_style="green"))
 
@@ -626,7 +642,7 @@ def export_pdf(start_date_str: str, end_date_str: str):
         
         conn = get_db_connection()
         cursor = conn.execute(
-            "SELECT timestamp, event_type FROM events WHERE timestamp >= ? AND timestamp < ? ORDER BY timestamp ASC",
+            "SELECT timestamp, event_type, description FROM events WHERE timestamp >= ? AND timestamp < ? ORDER BY timestamp ASC",
             (s_iso, e_iso)
         )
         events = [dict(row) for row in cursor.fetchall()]
@@ -666,6 +682,7 @@ def export_pdf(start_date_str: str, end_date_str: str):
                     <th>{T('header_start')}</th>
                     <th>{T('header_end')}</th>
                     <th>{T('header_duration')}</th>
+                    <th>{T('header_desc')}</th>
                 </tr>
         """
         
@@ -676,6 +693,7 @@ def export_pdf(start_date_str: str, end_date_str: str):
                     <td>{s['start']}</td>
                     <td>{s['end']}</td>
                     <td>{s['duration_str']}</td>
+                    <td>{s['description']}</td>
                 </tr>
             """
             
@@ -823,7 +841,7 @@ def main(ctx: typer.Context):
 
         # Map commands to description keys
         cmds = [
-            ("ON", "desc_on", "work ON"),
+            ("ON", "desc_on", "work ON [Description]"),
             ("OFF", "desc_off", "work OFF"),
             ("TIME", "desc_time", "work TIME"),
             ("TIME-TODAY", "desc_time_today", "work TIME-TODAY"),

@@ -66,7 +66,7 @@ Once installed, just use the `work` command.
 
 | Command | Action | Example |
 | :--- | :--- | :--- |
-| `work ON` | Start timer 🚀 | `work ON` |
+| `work ON [desc]` | Start timer 🚀 (Optional description) | `work ON "Bug Fix"` |
 | `work OFF` | Stop timer 🛑 | `work OFF` |
 | `work TIME` | Current duration ⏱️ | `work TIME` |
 | `work TIME-TODAY` | Total today 📅 | `work TIME-TODAY` |

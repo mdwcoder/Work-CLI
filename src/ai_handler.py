@@ -15,22 +15,22 @@ class AIHandler:
     def format_context(self, events: list) -> str:
         """
         Converts DB event rows into a readable context string.
-        Events is expected to be a list of sqlite3.Row or dicts with 'timestamp', 'event_type'.
+        Events is expected to be a list of sqlite3.Row or dicts with 'timestamp', 'event_type', 'description'.
         """
         if not events:
             return "No work history found."
             
         lines = ["Work History Log:"]
         
-        # Simple processing to group by day could be done here, 
-        # but for raw context we'll list sessions.
-        # Ideally, we should pair START-STOP for the AI to understand better.
-        
-        # Memory-efficient simple listing:
         for ev in events:
             ts = ev['timestamp']
             etype = ev['event_type']
-            lines.append(f"- {ts}: {etype}")
+            # Safely get description if it exists (it might not in old rows or if column missing)
+            desc = ""
+            if 'description' in ev.keys() and ev['description']:
+                desc = f" ({ev['description']})"
+                
+            lines.append(f"- {ts}: {etype}{desc}")
             
         return "\n".join(lines)
 

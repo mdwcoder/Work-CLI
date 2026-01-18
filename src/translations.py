@@ -81,7 +81,9 @@ TRANSLATIONS = {
         "backup_restored": "Database successfully restored.",
         "backup_not_found": "Backup file not found.",
         "backup_config_updated": "Auto-backup frequency set to",
-        "backup_auto_triggered": "Auto-backup triggered"
+        "backup_auto_triggered": "Auto-backup triggered",
+        "tip_use_description": "Tip: You can add a description: work ON 'Task Name'",
+        "header_desc": "Description"
     },
     "ES": {
         "error_critical_dir": "ERROR CRÍTICO: No se puede crear el directorio de datos",
@@ -165,7 +167,9 @@ TRANSLATIONS = {
         "backup_restored": "Base de datos restaurada con éxito.",
         "backup_not_found": "Archivo de copia de seguridad no encontrado.",
         "backup_config_updated": "Frecuencia de auto-backup configurada en",
-        "backup_auto_triggered": "Auto-backup activado"
+        "backup_auto_triggered": "Auto-backup activado",
+        "tip_use_description": "Consejo: Puedes añadir una descripción: work ON 'Nombre Tarea'",
+        "header_desc": "Descripción"
     },
     "FR": {
         "error_critical_dir": "ERREUR CRITIQUE: Impossible de créer le répertoire",
@@ -249,7 +253,9 @@ TRANSLATIONS = {
         "backup_restored": "Base de données restaurée avec succès.",
         "backup_not_found": "Fichier de sauvegarde introuvable.",
         "backup_config_updated": "Fréquence de sauvegarde auto réglée sur",
-        "backup_auto_triggered": "Sauvegarde auto déclenchée"
+        "backup_auto_triggered": "Sauvegarde auto déclenchée",
+        "tip_use_description": "Astuce: Vous pouvez ajouter une description: work ON 'Nom Tâche'",
+        "header_desc": "Description"
     },
     "PT": {
         "error_critical_dir": "ERRO CRÍTICO: Não é possível criar diretório",
@@ -333,7 +339,9 @@ TRANSLATIONS = {
         "backup_restored": "Banco de dados restaurado com sucesso.",
         "backup_not_found": "Arquivo de backup não encontrado.",
         "backup_config_updated": "Frequência de auto-backup definida para",
-        "backup_auto_triggered": "Auto-backup acionado"
+        "backup_auto_triggered": "Auto-backup acionado",
+        "tip_use_description": "Dica: Você pode adicionar uma descrição: work ON 'Nome Tarefa'",
+        "header_desc": "Descrição"
     }
 }
 
