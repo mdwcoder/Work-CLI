@@ -239,6 +239,11 @@ def ensure_logged_in():
         console.print(f"[red]{T('auth_login_required')}[/red]")
         raise typer.Exit(code=1)
 
+@app.command(name="USER-LOG-OUT")
+def user_log_out():
+    """Logout session (Alias)."""
+    logout_user()
+
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
     """
@@ -287,7 +292,7 @@ def main(ctx: typer.Context):
             ("CHANGE-KEY", "desc_change_key", "work CHANGE-KEY"),
             ("ENCRIPT-ON", "desc_encrypt_on", "work ENCRIPT-ON"),
             ("ENCRIPT-OFF", "desc_encrypt_off", "work ENCRIPT-OFF"),
-            ("LOGOUT", "desc_logout", "work LOGOUT"),
+            ("LOGOUT / USER-LOG-OUT", "desc_logout", "work USER-LOG-OUT"),
             ("USER-DELETE", "desc_user_delete", "work USER-DELETE"),
             ("REGISTER", "desc_register", "work REGISTER"),
             ("LOGIN", "desc_login", "work LOGIN"),

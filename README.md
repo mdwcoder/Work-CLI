@@ -1,184 +1,141 @@
-# Work-CLI: Visual Time Tracker 🚀
+# ⚡ Work-CLI
+> **The Ultimate Terminal Time Tracker**
+> *Privacy-First, Multi-User, AI-Powered, and Cross-Platform.*
 
-A beautiful, robust, and highly optimized time tracking tool for the terminal. Works on Linux, macOS, and Windows.
-
-![Status](https://img.shields.io/badge/Status-Active-success?style=for-the-badge)
-![Python](https://img.shields.io/badge/Python-3.12-blue?style=for-the-badge)
-![Docker](https://img.shields.io/badge/Docker-Ready-blue?style=for-the-badge)
-
-## Features
-
-*   **⚡ Optimized Performance**: Zero resource usage when idle.
-*   **🛡️ Robust & Safe**: Automatic error handling, database locking protection, and permission checks.
-*   **🎨 Beautiful UI**: Powered by `rich` for a modern experience.
-*   **🐳 Docker Ready**: Run it anywhere without installing Python locally.
-*   **💾 Auto-Backups**: Your data is backed up automatically.
+![Work-CLI Banner](https://img.shields.io/badge/Work--CLI-Fast_%26_Secure-blue?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.8%2B-yellow?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
 ---
 
-## 🚀 Installation
+## 🚀 Overview
+**Work-CLI** is a professional time-tracking tool designed for developers who love the terminal. It combines robust time management with advanced features like AI analysis, automated backups, and military-grade encryption.
 
-Choose your preferred method:
+### ✨ Key Features
+*   **⏱️ Time Tracking**: Start/Stop/Pause with descriptions.
+*   **📊 Reporting**: CSV/PDF exports and Email integration.
+*   **🤖 AI Insights**: Ask Gemini about your productivity trends.
+*   **👤 Multi-User**: Secure, isolated accounts with hashed passwords.
+*   **🔐 Privacy**: AES-256 encryption for your sensitive data.
+*   **💾 Auto-Backup**: Set it and forget it.
 
-### 🐧 Linux / 🍎 macOS (Recommended)
-1.  **Clone or Download** this repository.
-2.  Run the installer:
-    The interactive installer will detect your shell (Bash/Zsh/Fish), create a virtual environment, and set up the alias.
+---
 
+## 📥 Installation
+
+### 🐧 Linux / 🍎 MacOS
+```bash
+# Clone & Install
+git clone https://github.com/mdwcoder/Work-CLI.git
+cd Work-CLI/
+chmod +x init.sh
+./init.sh
+```
+*Follow the interactive wizard to set your language, shell, and admin user.*
+
+### 🪟 Windows (PowerShell)
+```powershell
+# Run the installer script
+.\install.ps1
+```
+
+---
+
+## ⚡ Quick Start
+
+### 1. Start Working
+```bash
+work ON "Refactoring Login System"
+# Returns: 🚀 Timer Started at 09:00:00 [Encrypted]
+```
+
+### 2. Check Status
+```bash
+work TIME
+# Returns: ⏱️ Current Session: 01:23:45
+```
+
+### 3. Finish Work
+```bash
+work OFF
+# Returns: 🛑 Stopped. Duration: 04:30:00
+```
+
+---
+
+## 🔧 Core Commands
+
+### 📅 Time Management
+| Command | Action |
+| :--- | :--- |
+| `work ON [Desc]` | Start timer (Description optional) |
+| `work OFF` | Stop current timer |
+| `work TIME-TODAY` | Show total time today 📅 |
+| `work TIME-SELECT [Date]` | Show time for specific date |
+| `work TIME-RANGE [D1] [D2]` | Show total time in range |
+| `work INIT-TIME` | Show what time you started today 🌅 |
+
+### 📊 Reporting & Exports
+| Command | Action |
+| :--- | :--- |
+| `work EXPORT-CSV [D1] [D2]` | Export data to CSV |
+| `work EXPORT-PDF [D1] [D2]` | Export data to PDF report |
+| `work SEND-TO` | **Wait-free**: Generate & Email Report 📧 |
+| `work SEND-BACKUP-TO` | Email report from an old Backup 📦 |
+
+---
+
+## 🛡️ Advanced Security & Privacy
+
+### 👤 User Management
+Securely share your machine without sharing your logs.
+*   **Register**: `work REGISTER`
+*   **Login**: `work LOGIN`
+*   **Logout**: `work USER-LOG-OUT`
+*   **Delete**: `work USER-DELETE` (Permanent!)
+
+### 🔐 Encryption (AES-256)
+Protect your session descriptions.
+*   **Enable**: `work ENCRIPT-ON`
+*   **Migration**: `work CHANGE-KEY` (Rotates keys securely)
+
+### 📜 Audit Logs
+All sensitive actions (Logins, Deletions, Backups) are recorded in `logs/log.txt`.
+
+---
+
+## 🤖 AI Integration (Gemini)
+
+Unlock insights about your work patterns.
+
+1.  **Configure**: `work AI-CONFIG` (Enter API Key)
+2.  **Ask**:
     ```bash
-    ./init.sh
+    work AI-GEN-ASK "How was my productivity last week?"
     ```
-    *Supports: Arch, Manjaro, Debian, Ubuntu, Fedora, macOS*
-
-### 🪟 Windows
-
-1.  **PowerShell (Recommended)**:
-    Run the installer to set up the environment and add the `work` alias permanently:
-    ```powershell
-    .\install.ps1
+3.  **Contextual**:
+    ```bash
+    work AI-SEL-ASK-RANGE-TIME 01/01/2024 31/01/2024 "Summarize my main tasks"
     ```
-
-2.  **Command Prompt (CMD)**:
-    You can also run the tool directly using the batch runner:
-    ```cmd
-    scripts\working_runner.bat ON
-    ```
-
-### 🐳 Docker (Portable)
-
-No Python installed? No problem.
-
-**Using Docker Compose (Recommended):**
-```bash
-docker compose run --rm work-cli
-```
-
-**Using pure Docker:**
-```bash
-docker build -t work-cli .
-docker run --rm -v $(pwd)/data:/app/data work-cli
-```
 
 ---
 
-## 🛠️ Usage
+## 💾 Backup & Data
+Your data is yours. Local SQLite database.
 
-Once installed, just use the `work` command.
-
-| Command | Action | Example |
-| :--- | :--- | :--- |
-| `work ON [desc]` | Start timer 🚀 (Optional description) | `work ON "Bug Fix"` |
-| `work OFF` | Stop timer 🛑 | `work OFF` |
-| `work TIME` | Current duration ⏱️ | `work TIME` |
-| `work TIME-TODAY` | Total today 📅 | `work TIME-TODAY` |
-| `work TIME-SELECT [date]` | Specific date 🗓️ | `work TIME-SELECT 15/01/2026` |
-| `work TIME-RANGE [d1] [d2]` | Date range 📊 | `work TIME-RANGE 01/01/ 31/01/` |
-| `work BACKUP` | Manual backup 💾 | `work BACKUP` |
-| `work CLEAR-ALL` | Wipe data 🗑️ | `work CLEAR-ALL` |
-
-
-### 6. 🌍 Multi-language Support
-The tool supports **English (EN), Spanish (ES), French (FR), and Portuguese (PT)**.
-
-```bash
-work LANG      # Check current language
-work LANG-SET  # Change language
-```
-## 🔐 Privacy & Encryption (New!)
-Protect your work log with **AES Encryption**. Only the `description` field is encrypted to allow date-based searching. The key is stored locally in `.secret.key`.
-
-| Command | Action |
-| :--- | :--- |
-| `work INIT-ENCRYPTION` | Initialize encryption wizard 🧙 |
-| `work GET-KEY` | Show your secret key 🔑 |
-| `work ENCRIPT-ON` | Enable & Encrypt existing data 🔒 |
-| `work ENCRIPT-OFF` | Disable & Decrypt all data 🔓 |
-| `work CHANGE-KEY` | Wipe data & Rotate key 🔄 |
-
-> **Note:** Timestamps are NOT encrypted to maintain performance.
-
-## 🤖 AI Features (Powered by Gemini & OpenAI)
-Work-CLI integrates with LLMs to analyze your work patterns!
-
-1. **Configure Provider**:
-   First, set your provider and API Key:
-   ```bash
-   work AI-CONFIG
-   ```
-*   **Google Gemini**: Highly recommended. You can get a **free API Key** at [Google AI Studio](https://aistudio.google.com/app/apikey).
-*   **OpenAI**: Requires a paid API key.
-
-#### Usage
-Ask questions about your work history:
-```bash
-# Ask about full history
-work AI-GEN-ASK "What is my average daily work time?"
-
-# Ask about a specific date range
-work AI-SEL-ASK-RANGE-TIME 01/01/2026 31/01/2026 "Summarize my work in January"
-```
-
-### 8. 📊 Export Data (New!)
-Export your work history to share or analyze externally.
-
-```bash
-# Export to CSV (Spreadsheet friendly)
-work EXPORT-CSV 01/01/2026 31/01/2026
-
-# Export to PDF (Beautiful Report)
-work EXPORT-PDF 01/01/2026 31/01/2026
-```
-
-### 📧 Email Reporting (New!)
-Send reports directly to your email client (Thunderbird, Outlook, etc.).
-
-| Command | Action |
-| :--- | :--- |
-| `work SEND-TO` | Generate & Email report (Interactive) 📧 |
-| `work SEND-BACKUP-TO` | Email report from a specific **Backup** 📦 |
-
-*Supports auto-attachment on Linux (`xdg-email`). On other OSs, it opens a draft and asks you to attach the file manually.*
-
-### 🔐 Privacy & Encryption (New!)
-- **AES-256** Encryption for your descriptions.
-- `work ENCRIPT-ON` / `work ENCRIPT-OFF`: Toggle encryption.
-- `work CHANGE-KEY`: Rotate keys (Requires backup/restore).
-
-### 👤 Multi-User & Security (New!)
-Secure isolation for shared environments.
-- **Login Required**: All commands (except help) require an active session.
-- **Commands**:
-    - `work REGISTER`: Create a new user.
-    - `work LOGIN`: Start session.
-    - `work USER-DELETE`: Permanently delete user and data.
-- **Audit Logs**: Events tracked in `logs/log.txt`.
-
-### 9. 💾 Backup Management (Advanced)
-By default, the system creates backups automatically (Frequency: MONTHLY).
-
-```bash
-# Configure Auto-Backup Frequency
-work CONFIG-BACKUP-AUTO DAILY      # Every day
-work CONFIG-BACKUP-AUTO MONTHLY    # Every month (Default)
-work CONFIG-BACKUP-AUTO CUSTOM 3   # Every 3 months
-work CONFIG-BACKUP-AUTO NEVER      # Disable auto-backup
-
-# Restore from a backup file (WARNING: Overwrites current data)
-# Files are located in the 'backup/' directory
-work LOAD-BACKUP
-```
-
-## ⚙️ Technical Details
-
-*   **Logic**: `src/Working_Code.py` | Core logic with global error wrapping.
-*   **Data**: `data/working_code.db` | SQLite database.
-*   **Backups**: `backup/` | Automatic backups on change.
-*   **Runner**: `scripts/working_runner.sh` | Venv manager.
-
-**Requirements:**
-*   Python 3.8+ (if running locally)
-*   OR Docker
+*   **Location**: `data/working_code.db`
+*   **Manual Backup**: `work BACKUP`
+*   **Auto-Backup**: Configurable (`work CONF-BACKUP-AUTO`)
+    *   `DAILY`, `MONTHLY`, `CUSTOM N`
+*   **Restore**: `work LOAD-BACKUP`
 
 ---
-*Created with ❤️ for efficiency.*
 
+## 🛠️ Technical Specs
+*   **Language**: Python 3.8+
+*   **Database**: SQLite3
+*   **Dependencies**: `typer`, `rich`, `cryptography`, `xhtml2pdf`
+
+---
+
+*Built with ❤️ for efficiency.*
