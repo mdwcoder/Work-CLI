@@ -83,7 +83,18 @@ TRANSLATIONS = {
         "backup_config_updated": "Auto-backup frequency set to",
         "backup_auto_triggered": "Auto-backup triggered",
         "tip_use_description": "Tip: You can add a description: work ON 'Task Name'",
-        "header_desc": "Description"
+        "header_desc": "Description",
+        "desc_init_encryption": "Initialize Encryption",
+        "desc_get_key": "Show Encryption Key",
+        "desc_change_key": "Change Key (Wipe Data)",
+        "desc_encrypt_on": "Enable Encryption (Migrate)",
+        "desc_encrypt_off": "Disable Encryption (Migrate)",
+        "encrypt_init_prompt": "Do you want to enable database encryption for privacy? (y/n)",
+        "encrypt_key_setup": "Setup Key",
+        "encrypt_key_saved": "Encryption Key saved. Do not lose it if you move data.",
+        "encrypt_warning_wipe": "WARNING: Changing key requires wiping data or re-encrypting. This specific command wipes data for safety. Continue?",
+        "encrypt_enabled": "Encryption Enabled. Database encrypted.",
+        "encrypt_disabled": "Encryption Disabled. Database decrypted."
     },
     "ES": {
         "error_critical_dir": "ERROR CRÍTICO: No se puede crear el directorio de datos",
@@ -169,7 +180,18 @@ TRANSLATIONS = {
         "backup_config_updated": "Frecuencia de auto-backup configurada en",
         "backup_auto_triggered": "Auto-backup activado",
         "tip_use_description": "Consejo: Puedes añadir una descripción: work ON 'Nombre Tarea'",
-        "header_desc": "Descripción"
+        "header_desc": "Descripción",
+        "desc_init_encryption": "Inicializar Encriptación",
+        "desc_get_key": "Mostrar Clave Encriptación",
+        "desc_change_key": "Cambiar Clave (Borrar Datos)",
+        "desc_encrypt_on": "Activar Encriptación (Migrar)",
+        "desc_encrypt_off": "Desactivar Encriptación (Migrar)",
+        "encrypt_init_prompt": "¿Quieres activar la encriptación de la base de datos para privacidad? (y/n)",
+        "encrypt_key_setup": "Configurar Clave",
+        "encrypt_key_saved": "Clave guardada. No la pierdas si mueves los datos.",
+        "encrypt_warning_wipe": "ADVERTENCIA: Cambiar la clave requiere borrar datos o re-encriptar. Este comando borra datos por seguridad. ¿Continuar?",
+        "encrypt_enabled": "Encriptación Activada. Base de datos encriptada.",
+        "encrypt_disabled": "Encriptación Desactivada. Base de datos desencriptada."
     },
     "FR": {
         "error_critical_dir": "ERREUR CRITIQUE: Impossible de créer le répertoire",
@@ -255,7 +277,18 @@ TRANSLATIONS = {
         "backup_config_updated": "Fréquence de sauvegarde auto réglée sur",
         "backup_auto_triggered": "Sauvegarde auto déclenchée",
         "tip_use_description": "Astuce: Vous pouvez ajouter une description: work ON 'Nom Tâche'",
-        "header_desc": "Description"
+        "header_desc": "Description",
+        "desc_init_encryption": "Initialiser Chiffrement",
+        "desc_get_key": "Afficher Clé Chiffrement",
+        "desc_change_key": "Changer Clé (Effacer Données)",
+        "desc_encrypt_on": "Activer Chiffrement (Migrer)",
+        "desc_encrypt_off": "Désactiver Chiffrement (Migrer)",
+        "encrypt_init_prompt": "Voulez-vous activer le chiffrement pour la confidentialité? (y/n)",
+        "encrypt_key_setup": "Configurer Clé",
+        "encrypt_key_saved": "Clé sauvegardée. Ne la perdez pas.",
+        "encrypt_warning_wipe": "ATTENTION: Changer la clé nécessite d'effacer les données. Continuer?",
+        "encrypt_enabled": "Chiffrement Activé.",
+        "encrypt_disabled": "Chiffrement Désactivé."
     },
     "PT": {
         "error_critical_dir": "ERRO CRÍTICO: Não é possível criar diretório",
@@ -341,7 +374,18 @@ TRANSLATIONS = {
         "backup_config_updated": "Frequência de auto-backup definida para",
         "backup_auto_triggered": "Auto-backup acionado",
         "tip_use_description": "Dica: Você pode adicionar uma descrição: work ON 'Nome Tarefa'",
-        "header_desc": "Descrição"
+        "header_desc": "Descrição",
+        "desc_init_encryption": "Inicializar Criptografia",
+        "desc_get_key": "Mostrar Chave Criptografia",
+        "desc_change_key": "Mudar Chave (Apagar Dados)",
+        "desc_encrypt_on": "Ativar Criptografia (Migrar)",
+        "desc_encrypt_off": "Desativar Criptografia (Migrar)",
+        "encrypt_init_prompt": "Deseja ativar criptografia do banco de dados? (y/n)",
+        "encrypt_key_setup": "Configurar Chave",
+        "encrypt_key_saved": "Chave salva. Não a perca.",
+        "encrypt_warning_wipe": "AVISO: Mudar a chave requer apagar dados. Continuar?",
+        "encrypt_enabled": "Criptografia Ativada.",
+        "encrypt_disabled": "Criptografia Desativada."
     }
 }
 

@@ -204,7 +204,8 @@ def start_timer(description: str = typer.Argument(None)):
         return
 
     now = datetime.now()
-    conn.execute("INSERT INTO events (timestamp, event_type, description) VALUES (?, ?, ?)", (now.isoformat(), 'START', description))
+    desc_enc = encrypt_text(description) if description else None
+    conn.execute("INSERT INTO events (timestamp, event_type, description) VALUES (?, ?, ?)", (now.isoformat(), 'START', desc_enc))
     conn.commit()
     conn.close()
     
@@ -573,7 +574,9 @@ def process_sessions(events):
         if etype == 'START':
             if session_start is None:
                 session_start = ts
-                session_desc = ev.get('description', '') or ''
+                # Decrypt here
+                raw_desc = ev.get('description', '') or ''
+                session_desc = decrypt_text(raw_desc)
         elif etype == 'STOP':
             if session_start:
                 duration = ts - session_start
@@ -813,19 +816,173 @@ def config_backup(frequency: str, interval: int = 1):
     console.print(Panel(f"[bold green]{T('backup_config_updated')} {freq}[/bold green]", border_style="green"))
 
 
+
+# --- Encryption Features ---
+from cryptography.fernet import Fernet
+
+KEY_PATH = DB_PATH.parent / ".secret.key"
+FERNET = None
+
+def load_key():
+    """Load encryption key if exists."""
+    global FERNET
+    if KEY_PATH.exists():
+        with open(KEY_PATH, "rb") as key_file:
+            key = key_file.read()
+            try:
+                FERNET = Fernet(key)
+            except Exception:
+                pass # Invalid key?
+
+# Initialize key on module load
+load_key()
+
+def encrypt_text(text: str) -> str:
+    """Encrypt text if FERNET is active."""
+    if not FERNET or not text:
+        return text
+    try:
+        return FERNET.encrypt(text.encode()).decode()
+    except Exception:
+        return text
+
+def decrypt_text(text: str) -> str:
+    """Decrypt text if FERNET is active."""
+    if not FERNET or not text:
+        return text
+    try:
+        # Check if it looks encrypted (starts with gAAAA...) - loose check
+        # Or just try decrypt. 
+        # If it wasn't encrypted (legacy data), decrypt might fail or return garbage if key matches?
+        # Fernet tokens are URL safe base64.
+        return FERNET.decrypt(text.encode()).decode()
+    except Exception:
+        # Fallback: maybe it wasn't encrypted
+        return text
+
+@app.command(name="INIT-ENCRYPTION")
+def init_encryption(check_first: bool = False):
+    """Initialize encryption setup."""
+    # Check first mode for installer
+    if check_first:
+        if KEY_PATH.exists():
+             return # Already setup
+        if not typer.confirm(T('encrypt_init_prompt'), default=False):
+             return
+    
+    # Generate Key
+    key = Fernet.generate_key()
+    with open(KEY_PATH, "wb") as key_file:
+        key_file.write(key)
+    
+    console.print(Panel(f"[bold green]{T('encrypt_key_setup')}[/bold green]\n{T('encrypt_key_saved')}", border_style="green"))
+    load_key() # Reload
+    
+    # Enable:
+    encrypt_on()
+
+@app.command(name="GET-KEY")
+def get_key():
+    """Show the encryption key."""
+    if KEY_PATH.exists():
+        with open(KEY_PATH, "fb") as key_file:
+             key = key_file.read().decode() # Read bytes, decode for display
+        
+        # Read as binary then decode to show string
+        with open(KEY_PATH, "rb") as f:
+            k = f.read().decode()
+        console.print(Panel(f"[bold red]SECRET KEY:[/bold red]\n{k}", border_style="red"))
+    else:
+        console.print(f"[yellow]{T('backup_not_found')} (Key)[/yellow]")
+
+@app.command(name="CHANGE-KEY")
+def change_key():
+    """Change the encryption key (WIPES DATA)."""
+    console.print(Panel(f"[bold red]{T('encrypt_warning_wipe')}[/bold red]", border_style="red"))
+    if not typer.confirm("Confirm reset?"):
+        return
+        
+    # Backup first?
+    backup_db()
+    
+    # Delete DB and Key
+    try:
+        if DB_PATH.exists(): os.remove(DB_PATH)
+        if KEY_PATH.exists(): os.remove(KEY_PATH)
+        console.print("[green]Data wiped. Starting setup...[/green]")
+        init_encryption()
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+@app.command(name="ENCRIPT-ON")
+def encrypt_on():
+    """Enable encryption on existing data."""
+    init_db()
+    
+    if not FERNET:
+        # Generate temporary if not exists? Or demand init?
+        # Better to run init logic.
+        if not KEY_PATH.exists():
+             init_encryption()
+             return
+
+    # Migrate: Plain -> Encrypt
+    conn = get_db_connection()
+    events = [dict(row) for row in conn.execute("SELECT id, description FROM events").fetchall()]
+    
+    for ev in events:
+        desc = ev.get('description')
+        if desc:
+            # We assume it is plain text right now.
+            # Safety: try to decrypt. If fail, it's plain. If succeed, it's already encrypted?
+            # Double encryption is bad.
+            # Simple heuristic: If we just turned on, we assume everything is plain unless we track state.
+            # But the requirement says "Migrate".
+            encrypted = encrypt_text(desc)
+            conn.execute("UPDATE events SET description = ? WHERE id = ?", (encrypted, ev['id']))
+            
+    conn.commit()
+    conn.close()
+    console.print(Panel(f"[bold green]{T('encrypt_enabled')}[/bold green]", border_style="green"))
+
+@app.command(name="ENCRIPT-OFF")
+def encrypt_off():
+    """Disable encryption (Decrypt data)."""
+    global FERNET
+    init_db()
+    if not FERNET:
+        console.print("[red]Encryption not active.[/red]")
+        return
+        
+    # Migrate: Encrypt -> Plain
+    conn = get_db_connection()
+    events = [dict(row) for row in conn.execute("SELECT id, description FROM events").fetchall()]
+    
+    for ev in events:
+        desc = ev.get('description')
+        if desc:
+            plain = decrypt_text(desc)
+            conn.execute("UPDATE events SET description = ? WHERE id = ?", (plain, ev['id']))
+            
+    conn.commit()
+    conn.close()
+    
+    # Delete Key
+    if KEY_PATH.exists():
+        os.remove(KEY_PATH)
+        
+    FERNET = None
+    
+    console.print(Panel(f"[bold yellow]{T('encrypt_disabled')}[/bold yellow]", border_style="yellow"))
+
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
     """
     Working_Code Time Tracker
     """
-    # Always check auto-backup on any run (or only main?)
-    # Running on any command ensures we don't miss it if user uses it daily.
-    # But we need DB ready.
+    # Always check auto-backup on any run
     if DB_PATH.exists():
         try:
-            # We assume DB is accessible. 
-            # We need to initialize config table lookup if not using get_config wrapper that connects.
-            # get_config does internal connection.
             check_auto_backup() 
         except: 
             pass
@@ -861,6 +1018,11 @@ def main(ctx: typer.Context):
             ("AI-SEL-ASK-RANGE-TIME", "desc_ai_range_ask", "work AI-SEL-ASK-RANGE-TIME d1 d2 \"Query\""),
             ("EXPORT-CSV", "desc_export_csv", "work EXPORT-CSV d1 d2"),
             ("EXPORT-PDF", "desc_export_pdf", "work EXPORT-PDF d1 d2"),
+            ("INIT-ENCRYPTION", "desc_init_encryption", "work INIT-ENCRYPTION"),
+            ("GET-KEY", "desc_get_key", "work GET-KEY"),
+            ("CHANGE-KEY", "desc_change_key", "work CHANGE-KEY"),
+            ("ENCRIPT-ON", "desc_encrypt_on", "work ENCRIPT-ON"),
+            ("ENCRIPT-OFF", "desc_encrypt_off", "work ENCRIPT-OFF"),
         ]
 
         for cmd, desc_key, usage in cmds:

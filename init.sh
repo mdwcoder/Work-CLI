@@ -96,7 +96,7 @@ fi
 
 echo "Installing/Upgrading dependencies..."
 "$VENV_DIR/bin/pip" install --upgrade pip --quiet
-"$VENV_DIR/bin/pip" install rich typer google-generativeai openai xhtml2pdf --quiet
+"$VENV_DIR/bin/pip" install rich typer google-generativeai openai xhtml2pdf cryptography --quiet
 
 # ------------------------------------------------------------------
 # Configure Language
@@ -107,6 +107,11 @@ if [[ "$LANG_CHOICE" =~ ^(ES|EN|FR|PT)$ ]]; then
 else
     echo -e "${YELLOW}⚙️  Language set to System/Auto-detect.${NC}"
 fi
+
+# ------------------------------------------------------------------
+# Encryption Setup (Interactive)
+# ------------------------------------------------------------------
+"$VENV_DIR/bin/python" "src/Working_Code.py" INIT-ENCRYPTION --check-first
 
 echo ""
 echo "Path identified: $RUNNER_PATH"
@@ -132,7 +137,11 @@ SHELL_NAME=""
 
 case $SHELL_OPT in
     1)
-        SHELL_NAME="Bash"
+        # Trigger Encryption Setup (Check First)
+        # Done globally above case statement
+        
+        # Set Alias based on Shell
+        SHELL_NAME=$(basename "$SHELL")
         CONFIG_FILE="$HOME/.bashrc"
         ALIAS_CMD="alias $ALIAS_NAME='$RUNNER_PATH'"
         ;;

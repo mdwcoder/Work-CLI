@@ -81,17 +81,29 @@ The tool supports **English (EN), Spanish (ES), French (FR), and Portuguese (PT)
 
 ```bash
 work LANG      # Check current language
-work LANG-SET  # Change language (Interactive)
+work LANG-SET  # Change language
 ```
+## 🔐 Privacy & Encryption (New!)
+Protect your work log with **AES Encryption**. Only the `description` field is encrypted to allow date-based searching. The key is stored locally in `.secret.key`.
 
-### 7. 🤖 AI Integration (New!)
-Analyze your work habits using **Google Gemini** or **OpenAI ChatGPT**.
+| Command | Action |
+| :--- | :--- |
+| `work INIT-ENCRYPTION` | Initialize encryption wizard 🧙 |
+| `work GET-KEY` | Show your secret key 🔑 |
+| `work ENCRIPT-ON` | Enable & Encrypt existing data 🔒 |
+| `work ENCRIPT-OFF` | Disable & Decrypt all data 🔓 |
+| `work CHANGE-KEY` | Wipe data & Rotate key 🔄 |
 
-#### Configuration
-First, set your provider and API Key:
-```bash
-work AI-CONFIG
-```
+> **Note:** Timestamps are NOT encrypted to maintain performance.
+
+## 🤖 AI Features (Powered by Gemini & OpenAI)
+Work-CLI integrates with LLMs to analyze your work patterns!
+
+1. **Configure Provider**:
+   First, set your provider and API Key:
+   ```bash
+   work AI-CONFIG
+   ```
 *   **Google Gemini**: Highly recommended. You can get a **free API Key** at [Google AI Studio](https://aistudio.google.com/app/apikey).
 *   **OpenAI**: Requires a paid API key.
 
