@@ -66,6 +66,47 @@ else
     exit 1
 fi
 
+
+# ------------------------------------------------------------------
+# Language Selection
+# ------------------------------------------------------------------
+echo "--------------------------------------------------"
+echo "Select Language / Seleccione Idioma / Choisissez la langue / Escolha o idioma"
+echo "Options: ES, EN, FR, PT"
+read -p "Language [Default: System Auto-detect]: " LANG_CHOICE
+# Normalize input
+if [[ -z "$LANG_CHOICE" ]]; then
+    LANG_CHOICE="SYS"
+else
+    LANG_CHOICE=$(echo "$LANG_CHOICE" | tr '[:lower:]' '[:upper:]')
+fi
+
+# ------------------------------------------------------------------
+# Environment Setup (VEnv + Dependencies)
+# ------------------------------------------------------------------
+VENV_DIR="$SCRIPT_DIR/venv"
+echo ""
+echo -e "${BLUE}📦 Initializing Python Environment in $VENV_DIR...${NC}"
+
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv "$VENV_DIR"
+fi
+
+echo "Installing/Upgrading dependencies..."
+"$VENV_DIR/bin/pip" install --upgrade pip --quiet
+"$VENV_DIR/bin/pip" install rich typer --quiet
+
+# ------------------------------------------------------------------
+# Configure Language
+# ------------------------------------------------------------------
+if [[ "$LANG_CHOICE" =~ ^(ES|EN|FR|PT)$ ]]; then
+    echo -e "${YELLOW}⚙️  Setting language to $LANG_CHOICE...${NC}"
+    "$VENV_DIR/bin/python" "src/Working_Code.py" LANG-SET "$LANG_CHOICE"
+else
+    echo -e "${YELLOW}⚙️  Language set to System/Auto-detect.${NC}"
+fi
+
 echo ""
 echo "Path identified: $RUNNER_PATH"
 echo "Backup location: $BACKUP_DIR"

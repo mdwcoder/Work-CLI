@@ -408,15 +408,25 @@ def show_lang():
                       title="Configuration", border_style="blue", box=box.ROUNDED))
 
 @app.command(name="LANG-SET")
-def set_lang_command():
+def set_lang_command(code: Optional[str] = typer.Argument(None)):
     """Set the application language."""
     init_db()
     current = get_language()
     
+    if code:
+        code = code.upper()
+        if code in TRANSLATIONS:
+            set_config("language", code)
+            new_lang_text = TRANSLATIONS[code]["language_updated"]
+            console.print(Panel(f"[bold green]{new_lang_text} {code}![/bold green]", border_style="green"))
+            return
+        else:
+             console.print(f"[yellow]Invalid code '{code}'. Showing menu...[/yellow]")
+
     console.print(f"[bold]{T('language_select')}:[/bold]")
-    for code in TRANSLATIONS.keys():
-        marker = "(*)" if code == current else "   "
-        console.print(f"{marker} {code}")
+    for code_key in TRANSLATIONS.keys():
+        marker = "(*)" if code_key == current else "   "
+        console.print(f"{marker} {code_key}")
         
     choice = typer.prompt("Code").upper()
     if choice in TRANSLATIONS:
