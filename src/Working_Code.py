@@ -436,6 +436,112 @@ def set_lang_command(code: Optional[str] = typer.Argument(None)):
     else:
         console.print(f"[red]Invalid code. Available: {', '.join(TRANSLATIONS.keys())}[/red]")
 
+
+# --- AI Commands ---
+
+@app.command(name="AI-CONFIG")
+def ai_config():
+    """Configure AI Provider and Key."""
+    init_db()
+    console.print(Panel(f"[bold]{T('ai_config_menu')}[/bold]", border_style="blue"))
+    
+    console.print(f"1. GEMINI (Google)")
+    console.print(f"2. OPENAI (ChatGPT)")
+    
+    choice = typer.prompt(T('ai_provider_select'))
+    provider = "GEMINI" if choice == "1" else "OPENAI" if choice == "2" else None
+    
+    if not provider:
+        console.print("[red]Invalid choice.[/red]")
+        return
+        
+    api_key = typer.prompt(T('ai_key_prompt'), hide_input=True)
+    if api_key:
+        set_config("ai_provider", provider)
+        set_config("ai_api_key", api_key)
+        console.print(Panel(f"[bold green]{T('ai_key_saved')} {provider}![/bold green]", border_style="green"))
+
+@app.command(name="AI-GEN-ASK")
+def ai_gen_ask(question: str):
+    """Ask AI with full context."""
+    init_db()
+    
+    # helper to get ai
+    provider = get_config("ai_provider")
+    api_key = get_config("ai_api_key")
+    
+    if not provider or not api_key:
+        console.print(Panel(f"[yellow]AI not configured. Run 'work AI-CONFIG' first.[/yellow]", border_style="yellow"))
+        return
+
+    from ai_handler import AIHandler
+    
+    # Loading
+    with console.status(f"[bold green]{T('ai_analyzing')} {provider}...[/bold green]"):
+        try:
+            handler = AIHandler(provider, api_key)
+            
+            # Get all events
+            conn = get_db_connection()
+            cursor = conn.execute("SELECT timestamp, event_type FROM events ORDER BY timestamp ASC")
+            events = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            
+            context = handler.format_context(events)
+            response = handler.ask_ai(question, context)
+            
+            console.print(Panel(response, title=f"🤖 {provider} Response", border_style="magenta", box=box.ROUNDED))
+            
+        except Exception as e:
+            console.print(Panel(f"[bold red]{T('ai_error')}: {e}[/bold red]", border_style="red"))
+
+@app.command(name="AI-SEL-ASK-RANGE-TIME")
+def ai_range_ask(start_date_str: str, end_date_str: str, question: str):
+    """Ask AI with date range context."""
+    init_db()
+    
+    provider = get_config("ai_provider")
+    api_key = get_config("ai_api_key")
+    
+    if not provider or not api_key:
+        console.print(Panel(f"[yellow]AI not configured. Run 'work AI-CONFIG' first.[/yellow]", border_style="yellow"))
+        return
+        
+    from ai_handler import AIHandler
+    
+    # Loading
+    with console.status(f"[bold green]{T('ai_analyzing')} {provider}...[/bold green]"):
+        try:
+            start_date = parse_date(start_date_str)
+            end_date = parse_date(end_date_str)
+            # Add one day to end_date to include it fully in string comparison if using ISO
+            # But simple string compare roughly works if format matches key.
+            # Better: Filter in python or proper SQL based on ISO.
+            # Our timestamps are ISO `YYYY-MM-DDTHH:MM:SS`.
+            # We can use LIKE 'YYYY-MM-DD%' logic in loop or SQL.
+            
+            # Simple SQL range filter:
+            # We need start_date ISO at 00:00 and end_date at 23:59
+            s_iso = start_date.strftime("%Y-%m-%dT00:00:00")
+            e_iso = (end_date + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00")
+            
+            conn = get_db_connection()
+            cursor = conn.execute(
+                "SELECT timestamp, event_type FROM events WHERE timestamp >= ? AND timestamp < ? ORDER BY timestamp ASC",
+                (s_iso, e_iso)
+            )
+            events = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            
+            handler = AIHandler(provider, api_key)
+            context = handler.format_context(events)
+            response = handler.ask_ai(question, context)
+            
+            console.print(Panel(response, title=f"🤖 {provider} Response ({start_date_str} - {end_date_str})", border_style="magenta", box=box.ROUNDED))
+
+        except Exception as e:
+            console.print(Panel(f"[bold red]{T('ai_error')}: {e}[/bold red]", border_style="red"))
+
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
     """
@@ -465,6 +571,9 @@ def main(ctx: typer.Context):
             ("CLEAR-ALL", "desc_clear_all", "work CLEAR-ALL"),
             ("LANG", "desc_lang", "work LANG"),
             ("LANG-SET", "desc_lang_set", "work LANG-SET"),
+            ("AI-CONFIG", "desc_ai_config", "work AI-CONFIG"),
+            ("AI-GEN-ASK", "desc_ai_gen_ask", "work AI-GEN-ASK \"Query\""),
+            ("AI-SEL-ASK-RANGE-TIME", "desc_ai_range_ask", "work AI-SEL-ASK-RANGE-TIME d1 d2 \"Query\""),
         ]
 
         for cmd, desc_key, usage in cmds:

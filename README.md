@@ -69,9 +69,36 @@ Once installed, just use the `work` command.
 | `work BACKUP` | Manual backup 💾 | `work BACKUP` |
 | `work CLEAR-ALL` | Wipe data 🗑️ | `work CLEAR-ALL` |
 
-Run `work` without arguments to see the help menu.
 
----
+### 6. 🌍 Multi-language / Multi-idioma
+The tool supports **English (EN), Spanish (ES), French (FR), and Portuguese (PT)**.
+El sistema soporta **Inglés, Español, Francés y Portugués**.
+
+```bash
+work LANG      # Check current language
+work LANG-SET  # Change language (Interactive)
+```
+
+### 7. 🤖 AI Integration (New!)
+Analyze your work habits using **Google Gemini** or **OpenAI ChatGPT**.
+
+#### Configuration
+First, set your provider and API Key:
+```bash
+work AI-CONFIG
+```
+*   **Google Gemini**: Highly recommended. You can get a **free API Key** at [Google AI Studio](https://aistudio.google.com/app/apikey).
+*   **OpenAI**: Requires a paid API key.
+
+#### Usage
+Ask questions about your work history:
+```bash
+# Ask about full history
+work AI-GEN-ASK "What is my average daily work time?"
+
+# Ask about a specific date range
+work AI-SEL-ASK-RANGE-TIME 01/01/2026 31/01/2026 "Summarize my work in January"
+```
 
 ## ⚙️ Technical Details
 

@@ -95,7 +95,7 @@ fi
 
 echo "Installing/Upgrading dependencies..."
 "$VENV_DIR/bin/pip" install --upgrade pip --quiet
-"$VENV_DIR/bin/pip" install rich typer --quiet
+"$VENV_DIR/bin/pip" install rich typer google-generativeai openai --quiet
 
 # ------------------------------------------------------------------
 # Configure Language

@@ -53,7 +53,16 @@ TRANSLATIONS = {
         "language_current": "Current Language",
         "language_select": "Select Language",
         "language_updated": "Language updated to",
-        "help_footer": "Use 'work [COMMAND] --help' for more info."
+        "help_footer": "Use 'work [COMMAND] --help' for more info.",
+        "ai_config_menu": "AI Provider Configuration",
+        "ai_provider_select": "Select AI Provider (GEMINI/OPENAI)",
+        "ai_key_prompt": "Enter API Key",
+        "ai_key_saved": "API Key saved for",
+        "ai_analyzing": "Analyzing data with",
+        "ai_error": "AI Error",
+        "desc_ai_config": "Configure AI Provider",
+        "desc_ai_gen_ask": "Ask AI (Full Context)",
+        "desc_ai_range_ask": "Ask AI (Date Range)"
     },
     "ES": {
         "error_critical_dir": "ERROR CRÍTICO: No se puede crear el directorio de datos",
@@ -109,7 +118,16 @@ TRANSLATIONS = {
         "language_current": "Idioma Actual",
         "language_select": "Seleccionar Idioma",
         "language_updated": "Idioma actualizado a",
-        "help_footer": "Use 'work [COMANDO] --help' para más info."
+        "help_footer": "Use 'work [COMANDO] --help' para más info.",
+        "ai_config_menu": "Configuración de Proveedor IA",
+        "ai_provider_select": "Seleccione Proveedor IA (GEMINI/OPENAI)",
+        "ai_key_prompt": "Ingrese API Key",
+        "ai_key_saved": "API Key guardada para",
+        "ai_analyzing": "Analizando datos con",
+        "ai_error": "Error de IA",
+        "desc_ai_config": "Configurar Proveedor IA",
+        "desc_ai_gen_ask": "Preguntar IA (Contexto Completo)",
+        "desc_ai_range_ask": "Preguntar IA (Rango Fechas)"
     },
     "FR": {
         "error_critical_dir": "ERREUR CRITIQUE: Impossible de créer le répertoire",
@@ -165,7 +183,16 @@ TRANSLATIONS = {
         "language_current": "Langue Actuelle",
         "language_select": "Sélectionner Langue",
         "language_updated": "Langue mise à jour vers",
-        "help_footer": "Utilisez 'work [COMMANDE] --help' pour plus d'infos."
+        "help_footer": "Utilisez 'work [COMMANDE] --help' pour plus d'infos.",
+        "ai_config_menu": "Configuration Fournisseur IA",
+        "ai_provider_select": "Sélectionner Fournisseur IA (GEMINI/OPENAI)",
+        "ai_key_prompt": "Entrez Clé API",
+        "ai_key_saved": "Clé API enregistrée pour",
+        "ai_analyzing": "Analyse des données avec",
+        "ai_error": "Erreur IA",
+        "desc_ai_config": "Configurer Fournisseur IA",
+        "desc_ai_gen_ask": "Demander IA (Contexte Complet)",
+        "desc_ai_range_ask": "Demander IA (Plage Dates)"
     },
     "PT": {
         "error_critical_dir": "ERRO CRÍTICO: Não é possível criar diretório",
@@ -221,7 +248,16 @@ TRANSLATIONS = {
         "language_current": "Idioma Atual",
         "language_select": "Selecionar Idioma",
         "language_updated": "Idioma atualizado para",
-        "help_footer": "Use 'work [COMANDO] --help' para mais info."
+        "help_footer": "Use 'work [COMANDO] --help' para mais info.",
+        "ai_config_menu": "Configuração Provedor IA",
+        "ai_provider_select": "Selecionar Provedor IA (GEMINI/OPENAI)",
+        "ai_key_prompt": "Digite a Chave API",
+        "ai_key_saved": "Chave API salva para",
+        "ai_analyzing": "Analisando dados com",
+        "ai_error": "Erro de IA",
+        "desc_ai_config": "Configurar Provedor IA",
+        "desc_ai_gen_ask": "Perguntar IA (Contexto Completo)",
+        "desc_ai_range_ask": "Perguntar IA (Intervalo Datas)"
     }
 }
 
