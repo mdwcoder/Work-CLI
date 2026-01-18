@@ -78,6 +78,7 @@ read -p "Language [Default: System Auto-detect]: " LANG_CHOICE
 if [[ -z "$LANG_CHOICE" ]]; then
     LANG_CHOICE="SYS"
 else
+    # Portable uppercase conversion (works on Bash 3.2/macOS)
     LANG_CHOICE=$(echo "$LANG_CHOICE" | tr '[:lower:]' '[:upper:]')
 fi
 
