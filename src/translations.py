@@ -62,7 +62,19 @@ TRANSLATIONS = {
         "ai_error": "AI Error",
         "desc_ai_config": "Configure AI Provider",
         "desc_ai_gen_ask": "Ask AI (Full Context)",
-        "desc_ai_range_ask": "Ask AI (Date Range)"
+        "desc_ai_range_ask": "Ask AI (Date Range)",
+        "desc_export_csv": "Export history to CSV",
+        "desc_export_pdf": "Export history to PDF Report",
+        "export_csv_success": "Data exported to CSV",
+        "export_pdf_success": "PDF Report generated",
+        "header_date": "Date",
+        "header_start": "Start",
+        "header_end": "End",
+        "header_duration": "Duration",
+        "report_title": "Work History Report",
+        "report_summary": "Summary",
+        "total_sessions": "Total Sessions",
+        "total_duration": "Total Duration"
     },
     "ES": {
         "error_critical_dir": "ERROR CRÍTICO: No se puede crear el directorio de datos",
@@ -127,7 +139,19 @@ TRANSLATIONS = {
         "ai_error": "Error de IA",
         "desc_ai_config": "Configurar Proveedor IA",
         "desc_ai_gen_ask": "Preguntar IA (Contexto Completo)",
-        "desc_ai_range_ask": "Preguntar IA (Rango Fechas)"
+        "desc_ai_range_ask": "Preguntar IA (Rango Fechas)",
+        "desc_export_csv": "Exportar historial a CSV",
+        "desc_export_pdf": "Exportar reporte PDF",
+        "export_csv_success": "Datos exportados a CSV",
+        "export_pdf_success": "Reporte PDF generado",
+        "header_date": "Fecha",
+        "header_start": "Inicio",
+        "header_end": "Fin",
+        "header_duration": "Duración",
+        "report_title": "Reporte de Historial Laboral",
+        "report_summary": "Resumen",
+        "total_sessions": "Total Sesiones",
+        "total_duration": "Tiempo Total"
     },
     "FR": {
         "error_critical_dir": "ERREUR CRITIQUE: Impossible de créer le répertoire",
@@ -192,7 +216,19 @@ TRANSLATIONS = {
         "ai_error": "Erreur IA",
         "desc_ai_config": "Configurer Fournisseur IA",
         "desc_ai_gen_ask": "Demander IA (Contexte Complet)",
-        "desc_ai_range_ask": "Demander IA (Plage Dates)"
+        "desc_ai_range_ask": "Demander IA (Plage Dates)",
+        "desc_export_csv": "Exporter en CSV",
+        "desc_export_pdf": "Exporter rapport PDF",
+        "export_csv_success": "Données exportées en CSV",
+        "export_pdf_success": "Rapport PDF généré",
+        "header_date": "Date",
+        "header_start": "Début",
+        "header_end": "Fin",
+        "header_duration": "Durée",
+        "report_title": "Rapport d'activité",
+        "report_summary": "Résumé",
+        "total_sessions": "Sessions Totales",
+        "total_duration": "Durée Totale"
     },
     "PT": {
         "error_critical_dir": "ERRO CRÍTICO: Não é possível criar diretório",
@@ -257,7 +293,19 @@ TRANSLATIONS = {
         "ai_error": "Erro de IA",
         "desc_ai_config": "Configurar Provedor IA",
         "desc_ai_gen_ask": "Perguntar IA (Contexto Completo)",
-        "desc_ai_range_ask": "Perguntar IA (Intervalo Datas)"
+        "desc_ai_range_ask": "Perguntar IA (Intervalo Datas)",
+        "desc_export_csv": "Exportar para CSV",
+        "desc_export_pdf": "Exportar relatório PDF",
+        "export_csv_success": "Dados exportados para CSV",
+        "export_pdf_success": "Relatório PDF gerado",
+        "header_date": "Data",
+        "header_start": "Início",
+        "header_end": "Fim",
+        "header_duration": "Duração",
+        "report_title": "Relatório de Histórico",
+        "report_summary": "Resumo",
+        "total_sessions": "Sessões Totais",
+        "total_duration": "Duração Total"
     }
 }
 

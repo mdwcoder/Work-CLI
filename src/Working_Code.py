@@ -542,6 +542,163 @@ def ai_range_ask(start_date_str: str, end_date_str: str, question: str):
         except Exception as e:
             console.print(Panel(f"[bold red]{T('ai_error')}: {e}[/bold red]", border_style="red"))
 
+
+# --- Export Commands ---
+
+def process_sessions(events):
+    """
+    Process raw events into sessions (Start -> Stop).
+    Returns list of dicts: {date, start, end, duration}
+    """
+    sessions = []
+    session_start = None
+    
+    for ev in events:
+        ts = datetime.fromisoformat(ev['timestamp'])
+        etype = ev['event_type']
+        
+        if etype == 'START':
+            if session_start is None:
+                session_start = ts
+        elif etype == 'STOP':
+            if session_start:
+                duration = ts - session_start
+                sessions.append({
+                    "date": session_start.strftime("%Y-%m-%d"),
+                    "start": session_start.strftime("%H:%M:%S"),
+                    "end": ts.strftime("%H:%M:%S"),
+                    "duration": duration, # Timedelta
+                    "duration_str": format_duration(duration)
+                })
+                session_start = None
+            
+    # Handle active session (optional: skip or mark as active)
+    # For export, usually we export finished sessions.
+    return sessions
+
+@app.command(name="EXPORT-CSV")
+def export_csv(start_date_str: str, end_date_str: str):
+    """Export work history to CSV."""
+    init_db()
+    import csv
+    
+    try:
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str)
+        s_iso = start_date.strftime("%Y-%m-%dT00:00:00")
+        e_iso = (end_date + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00")
+        
+        conn = get_db_connection()
+        cursor = conn.execute(
+            "SELECT timestamp, event_type FROM events WHERE timestamp >= ? AND timestamp < ? ORDER BY timestamp ASC",
+            (s_iso, e_iso)
+        )
+        events = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        sessions = process_sessions(events)
+        
+        filename = f"work_history_{start_date.strftime('%Y%m%d')}-{end_date.strftime('%Y%m%d')}.csv"
+        file_path = os.getcwd() + "/" + filename
+        
+        with open(file_path, mode='w', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow([T('header_date'), T('header_start'), T('header_end'), T('header_duration')])
+            for s in sessions:
+                writer.writerow([s['date'], s['start'], s['end'], s['duration_str']])
+                
+        console.print(Panel(f"{T('export_csv_success')}:\n[blue]{file_path}[/blue] 📊", border_style="green"))
+
+    except Exception as e:
+        console.print(Panel(f"[bold red]Error: {e}[/bold red]", border_style="red"))
+
+@app.command(name="EXPORT-PDF")
+def export_pdf(start_date_str: str, end_date_str: str):
+    """Export work history to PDF."""
+    init_db()
+    from xhtml2pdf import pisa
+    
+    try:
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str)
+        s_iso = start_date.strftime("%Y-%m-%dT00:00:00")
+        e_iso = (end_date + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00")
+        
+        conn = get_db_connection()
+        cursor = conn.execute(
+            "SELECT timestamp, event_type FROM events WHERE timestamp >= ? AND timestamp < ? ORDER BY timestamp ASC",
+            (s_iso, e_iso)
+        )
+        events = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        sessions = process_sessions(events)
+        total_sessions = len(sessions)
+        total_duration = sum([s['duration'] for s in sessions], timedelta())
+        
+        # HTML Template
+        html = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Helvetica, sans-serif; padding: 20px; }}
+                h1 {{ color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }}
+                .summary {{ background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+                table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+                th {{ background: #007bff; color: white; padding: 10px; text-align: left; }}
+                td {{ padding: 8px; border-bottom: 1px solid #ddd; }}
+                tr:nth-child(even) {{ background-color: #f2f2f2; }}
+            </style>
+        </head>
+        <body>
+            <h1>{T('report_title')}</h1>
+            <p><strong>Range:</strong> {start_date_str} - {end_date_str}</p>
+            
+            <div class="summary">
+                <h3>{T('report_summary')}</h3>
+                <p><strong>{T('total_sessions')}:</strong> {total_sessions}</p>
+                <p><strong>{T('total_duration')}:</strong> {format_duration(total_duration)}</p>
+            </div>
+            
+            <table>
+                <tr>
+                    <th>{T('header_date')}</th>
+                    <th>{T('header_start')}</th>
+                    <th>{T('header_end')}</th>
+                    <th>{T('header_duration')}</th>
+                </tr>
+        """
+        
+        for s in sessions:
+            html += f"""
+                <tr>
+                    <td>{s['date']}</td>
+                    <td>{s['start']}</td>
+                    <td>{s['end']}</td>
+                    <td>{s['duration_str']}</td>
+                </tr>
+            """
+            
+        html += """
+            </table>
+        </body>
+        </html>
+        """
+        
+        filename = f"work_report_{start_date.strftime('%Y%m%d')}-{end_date.strftime('%Y%m%d')}.pdf"
+        file_path = os.getcwd() + "/" + filename
+        
+        with open(file_path, "wb") as pdf_file:
+            pisa_status = pisa.CreatePDF(html, dest=pdf_file)
+            
+        if pisa_status.err:
+            console.print(Panel(f"[bold red]PDF Generation Error[/bold red]", border_style="red"))
+        else:
+            console.print(Panel(f"{T('export_pdf_success')}:\n[blue]{file_path}[/blue] 📄", border_style="green"))
+
+    except Exception as e:
+        console.print(Panel(f"[bold red]Error: {e}[/bold red]", border_style="red"))
+
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
     """
@@ -574,6 +731,8 @@ def main(ctx: typer.Context):
             ("AI-CONFIG", "desc_ai_config", "work AI-CONFIG"),
             ("AI-GEN-ASK", "desc_ai_gen_ask", "work AI-GEN-ASK \"Query\""),
             ("AI-SEL-ASK-RANGE-TIME", "desc_ai_range_ask", "work AI-SEL-ASK-RANGE-TIME d1 d2 \"Query\""),
+            ("EXPORT-CSV", "desc_export_csv", "work EXPORT-CSV d1 d2"),
+            ("EXPORT-PDF", "desc_export_pdf", "work EXPORT-PDF d1 d2"),
         ]
 
         for cmd, desc_key, usage in cmds:

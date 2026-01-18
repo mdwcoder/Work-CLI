@@ -105,6 +105,17 @@ work AI-GEN-ASK "What is my average daily work time?"
 work AI-SEL-ASK-RANGE-TIME 01/01/2026 31/01/2026 "Summarize my work in January"
 ```
 
+### 8. 📊 Export Data (New!)
+Export your work history to share or analyze externally.
+
+```bash
+# Export to CSV (Spreadsheet friendly)
+work EXPORT-CSV 01/01/2026 31/01/2026
+
+# Export to PDF (Beautiful Report)
+work EXPORT-PDF 01/01/2026 31/01/2026
+```
+
 ## ⚙️ Technical Details
 
 *   **Logic**: `src/Working_Code.py` | Core logic with global error wrapping.
