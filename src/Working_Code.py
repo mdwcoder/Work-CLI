@@ -49,6 +49,53 @@ ERROR_STYLE = "bold red"
 app = typer.Typer(help="Visual Time Tracker for Terminal", add_completion=False)
 console = Console()
 
+# --- UI Helper ---
+class UI:
+    @staticmethod
+    def is_fast_mode():
+        return get_config("ui_mode") == "fast"
+
+    @staticmethod
+    def print(content, title=None, style=None, border_style="blue", box_type=box.ROUNDED):
+        if UI.is_fast_mode():
+            # Fast Mode: Plain text
+            if title:
+                print(f"--- {title.upper()} ---")
+            
+            if isinstance(content, Text):
+                print(content.plain)
+            elif isinstance(content, str):
+                # Strip basic coloring if rudimentary
+                print(content) 
+            else:
+                print(content)
+        else:
+            # Normal Mode: Rich Panel
+            if isinstance(content, str):
+                msg = Align.center(content, vertical="middle")
+            elif isinstance(content, Text):
+                msg = Align.center(content, vertical="middle")
+            else:
+                msg = content # Assume renderable like Table
+                
+            console.print(Panel(msg, title=title, border_style=border_style, box=box_type, padding=(1, 2) if title else (0,0)))
+
+    @staticmethod
+    def table(columns, rows):
+        if UI.is_fast_mode():
+            # Fast Table
+            print("\n" + "\t".join([c for c, _ in columns]))
+            for row in rows:
+                print("\t".join([str(r) for r in row]))
+            print("")
+        else:
+            t = Table(box=box.SIMPLE)
+            for col, style in columns:
+                t.add_column(col, style=style)
+            for row in rows:
+                t.add_row(*[str(r) for r in row])
+            console.print(t)
+
 # --- Config & Helpers ---
 
 def get_language() -> str:
@@ -239,6 +286,21 @@ def ensure_logged_in():
         console.print(f"[red]{T('auth_login_required')}[/red]")
         raise typer.Exit(code=1)
 
+@app.command(name="FAST-MODE")
+def fast_mode():
+    """Enable optimized mode (No colors/panels)."""
+    init_db()
+    set_config("ui_mode", "fast")
+    print("Optimization enabled. FAST-MODE active.")
+
+@app.command(name="NORMAL-MODE")
+def normal_mode():
+    """Disable optimized mode (Restore colors/panels)."""
+    init_db()
+    set_config("ui_mode", "normal")
+    console.print(Panel(Align.center("[bold green]Normal UI restored.[/bold green]", vertical="middle"), 
+                      title="Success", border_style="green", box=box.ROUNDED))
+
 @app.command(name="USER-LOG-OUT")
 def user_log_out():
     """Logout session (Alias)."""
@@ -249,73 +311,62 @@ def main(ctx: typer.Context):
     """
     ⚡ Work-CLI: Time Tracking, Reporting & Privacy.
     """
-    # Whitelist of commands allowed without login
-    whitelist = ["REGISTER", "LOGIN", "LANG-SET", "LANG", "DB", "AI-CONFIG"]
-    
-    # If no command is invoked (just 'work'), we show help or status.
-    # If help is invoked (-h, --help), typer handles it.
+    # Whitelist
+    whitelist = ["REGISTER", "LOGIN", "LANG-SET", "LANG", "DB", "AI-CONFIG", "FAST-MODE", "NORMAL-MODE"]
     
     if ctx.invoked_subcommand and ctx.invoked_subcommand.upper() not in whitelist:
-         # Check login for everything else
          if not get_current_user_id():
-             # Exception: If DB is empty/no users, maybe prompt register?
-             # But init.sh handles that. Here just block.
              console.print(f"[bold red]🚫 {T('auth_login_required')}[/bold red]")
              raise typer.Exit(code=1)
 
     if ctx.invoked_subcommand is None:
         print_banner(T('app_subtitle'))
         
-        # Show status table
-        table = Table(box=box.SIMPLE)
-        table.add_column("Command", style="cyan")
-        table.add_column("Description", style="white")
-        table.add_column("Example", style="dim")
-        
-        cmds = [
-            ("ON [Desc]", "desc_start", "work ON 'Project A'"),
-            ("OFF", "desc_stop", "work OFF"),
-            ("TIME", "desc_time", "work TIME"),
-            ("TIME-TODAY", "desc_today", "work TIME-TODAY"),
-            ("TIME-SELECT", "desc_select", "work TIME-SELECT 01/01/2024"),
-            ("TIME-RANGE", "desc_range", "work TIME-RANGE 01/01/2024 31/01/2024"),
-            ("INIT-TIME", "desc_init", "work INIT-TIME"),
-            ("INIT-TIME_WHEN", "desc_init_when", "work INIT-TIME_WHEN 01/01/2024"),
-            ("AI-GEN-ASK", "desc_ai_ask", "work AI-GEN-ASK \"Trend?\""),
-            ("AI-SEL-ASK-RANGE-TIME", "desc_ai_range_ask", "work AI-SEL-ASK-RANGE-TIME d1 d2 \"Query\""),
-            ("EXPORT-CSV", "desc_export_csv", "work EXPORT-CSV d1 d2"),
-            ("EXPORT-PDF", "desc_export_pdf", "work EXPORT-PDF d1 d2"),
-            ("SEND-TO", "desc_send_to", "work SEND-TO"),
-            ("SEND-BACKUP-TO", "desc_send_backup_to", "work SEND-BACKUP-TO"),
-            ("INIT-ENCRYPTION", "desc_init_encryption", "work INIT-ENCRYPTION"),
-            ("GET-KEY", "desc_get_key", "work GET-KEY"),
-            ("CHANGE-KEY", "desc_change_key", "work CHANGE-KEY"),
-            ("ENCRIPT-ON", "desc_encrypt_on", "work ENCRIPT-ON"),
-            ("ENCRIPT-OFF", "desc_encrypt_off", "work ENCRIPT-OFF"),
-            ("LOGOUT / USER-LOG-OUT", "desc_logout", "work USER-LOG-OUT"),
-            ("USER-DELETE", "desc_user_delete", "work USER-DELETE"),
-            ("REGISTER", "desc_register", "work REGISTER"),
-            ("LOGIN", "desc_login", "work LOGIN"),
-            ("BACKUP", "desc_backup", "work BACKUP"),
-            ("CONF-BACKUP-AUTO", "desc_conf_backup", "work CONF-BACKUP-AUTO"),
-            ("LOAD-BACKUP", "desc_load_backup", "work LOAD-BACKUP"),
-            ("AI-CONFIG", "desc_ai_config", "work AI-CONFIG"),
-            ("LANG-SET", "desc_lang_set", "work LANG-SET ES"),
-            ("DB", "desc_db", "work DB"),
-            ("CLEAR-ALL", "desc_clear", "work CLEAR-ALL"),
+        # Build Command List
+        columns = [("Command", "cyan"), ("Description", "white"), ("Example", "dim")]
+        rows = [
+            ("ON [Desc]", T("desc_start"), "work ON 'Project A'"),
+            ("OFF", T("desc_stop"), "work OFF"),
+            ("TIME", T("desc_time"), "work TIME"),
+            ("TIME-TODAY", T("desc_today"), "work TIME-TODAY"),
+            ("TIME-SELECT", T("desc_select"), "work TIME-SELECT 01/01/2024"),
+            ("TIME-RANGE", T("desc_range"), "work TIME-RANGE 01/01/2024 31/01/2024"),
+            ("INIT-TIME", T("desc_init"), "work INIT-TIME"),
+            ("INIT-TIME_WHEN", T("desc_init_when"), "work INIT-TIME_WHEN 01/01/2024"),
+            ("AI-GEN-ASK", T("desc_ai_ask"), "work AI-GEN-ASK \"Trend?\""),
+            ("AI-SEL-ASK-RANGE-TIME", T("desc_ai_range_ask"), "work AI-SEL-ASK-RANGE-TIME d1 d2"),
+            ("EXPORT-CSV", T("desc_export_csv"), "work EXPORT-CSV d1 d2"),
+            ("EXPORT-PDF", T("desc_export_pdf"), "work EXPORT-PDF d1 d2"),
+            ("SEND-TO", T("desc_send_to"), "work SEND-TO"),
+            ("SEND-BACKUP-TO", T("desc_send_backup_to"), "work SEND-BACKUP-TO"),
+            ("INIT-ENCRYPTION", T("desc_init_encryption"), "work INIT-ENCRYPTION"),
+            ("GET-KEY", T("desc_get_key"), "work GET-KEY"),
+            ("CHANGE-KEY", T("desc_change_key"), "work CHANGE-KEY"),
+            ("ENCRIPT-ON", T("desc_encrypt_on"), "work ENCRIPT-ON"),
+            ("ENCRIPT-OFF", T("desc_encrypt_off"), "work ENCRIPT-OFF"),
+            ("LOGOUT", T("desc_logout"), "work LOGOUT"),
+            ("USER-DELETE", T("desc_user_delete"), "work USER-DELETE"),
+            ("REGISTER", T("desc_register"), "work REGISTER"),
+            ("LOGIN", T("desc_login"), "work LOGIN"),
+            ("BACKUP", T("desc_backup"), "work BACKUP"),
+            ("CONF-BACKUP-AUTO", T("desc_conf_backup"), "work CONF-BACKUP-AUTO"),
+            ("LOAD-BACKUP", T("desc_load_backup"), "work LOAD-BACKUP"),
+            ("FAST-MODE", "Enable Fast Mode", "work FAST-MODE"),
+            ("NORMAL-MODE", "Enable Normal Mode", "work NORMAL-MODE"),
+            ("AI-CONFIG", T("desc_ai_config"), "work AI-CONFIG"),
+            ("LANG-SET", T("desc_lang_set"), "work LANG-SET"),
+            ("DB", T("desc_db"), "work DB"),
+            ("CLEAR-ALL", T("desc_clear"), "work CLEAR-ALL"),
         ]
-        
-        for cmd, desc_key, ex in cmds:
-            table.add_row(cmd, T(desc_key), ex)
             
-        console.print(table)
+        UI.table(columns, rows)
         
         # User Status
         user = get_current_user_name()
         if user:
-            console.print(f"\n[green]Logged in as: {user}[/green]")
+            UI.print(f"Logged in as: {user}", style="green")
         else:
-            console.print(f"\n[yellow]Not logged in.[/yellow]")
+            UI.print("Not logged in.", style="yellow")
 
 @app.command(name="EXPORT-CSV")
 def export_csv(start_date_str: str, end_date_str: str):
@@ -509,19 +560,26 @@ def format_duration(td: timedelta) -> str:
 
 def print_banner(subtitle: str = ""):
     """Prints a styled banner."""
-    grid = Table.grid(expand=True)
-    grid.add_column(justify="center", ratio=1)
-    grid.add_row(Text("⚡ WORK-CLI ⚡", style="bold magenta", justify="center"))
-    
-    # Show User info in banner
-    user = get_current_user_name()
-    if user:
-         grid.add_row(Text(f"User: {user}", style="dim green", justify="center"))
-         
-    if subtitle:
-        grid.add_row(Text(subtitle, style="cyan", justify="center"))
-    
-    console.print(Panel(grid, style=BORDER_STYLE, border_style=BORDER_STYLE, box=box.HEAVY))
+    if UI.is_fast_mode():
+        print("\n=== WORK-CLI ===")
+        if subtitle: print(f"--- {subtitle} ---")
+        user = get_current_user_name()
+        if user: print(f"User: {user}")
+        print()
+    else:
+        grid = Table.grid(expand=True)
+        grid.add_column(justify="center", ratio=1)
+        grid.add_row(Text("⚡ WORK-CLI ⚡", style="bold magenta", justify="center"))
+        
+        # Show User info in banner
+        user = get_current_user_name()
+        if user:
+             grid.add_row(Text(f"User: {user}", style="dim green", justify="center"))
+             
+        if subtitle:
+            grid.add_row(Text(subtitle, style="cyan", justify="center"))
+        
+        console.print(Panel(grid, style=BORDER_STYLE, border_style=BORDER_STYLE, box=box.HEAVY))
 
 # --- Commands ---
 
@@ -533,8 +591,7 @@ def start_timer(description: str = typer.Argument(None)):
     
     conn = get_db_connection()
     if get_active_session_start(conn):
-        console.print(Panel(Align.center(f"[bold yellow]{T('timer_already_running')}[/bold yellow]", vertical="middle"), 
-                          title="Info", border_style="yellow", box=box.ROUNDED, padding=(1, 2)))
+        UI.print(f"[bold yellow]{T('timer_already_running')}[/bold yellow]", title="Info", border_style="yellow")
         conn.close()
         return
 
@@ -551,8 +608,8 @@ def start_timer(description: str = typer.Argument(None)):
     
     log_audit("CMD_ON", f"Started. Desc: {description or 'None'}")
     
-    console.print(Panel(Align.center(f"[bold green]{T('timer_started')}[/bold green]\nTime: [cyan]{now.strftime('%H:%M:%S')}[/cyan] 🚀", vertical="middle"), 
-                      title="Success", border_style="green", box=box.HEAVY, padding=(1, 5)))
+    UI.print(f"[bold green]{T('timer_started')}[/bold green]\nTime: [cyan]{now.strftime('%H:%M:%S')}[/cyan] 🚀", 
+             title="Success", border_style="green", box_type=box.HEAVY)
     
     if not description:
          console.print(Align.center(f"[dim yellow]{T('tip_use_description')}[/dim yellow]"))
@@ -568,8 +625,7 @@ def stop_timer():
     conn = get_db_connection()
     start_time = get_active_session_start(conn)
     if not start_time:
-        console.print(Panel(Align.center(f"[bold yellow]{T('timer_not_running')}[/bold yellow]", vertical="middle"), 
-                          title="Info", border_style="yellow", box=box.ROUNDED, padding=(1, 2)))
+        UI.print(f"[bold yellow]{T('timer_not_running')}[/bold yellow]", title="Info", border_style="yellow")
         conn.close()
         return
 
@@ -589,8 +645,7 @@ def stop_timer():
     text.append(f"{T('stopped_at')}: {now.strftime('%H:%M:%S')}\n", style="dim white")
     text.append(f"{T('duration')}:   {format_duration(duration)}", style="bold white")
     
-    console.print(Panel(Align.center(text, vertical="middle"), 
-                      title="Stopped", border_style="red", box=box.HEAVY, padding=(1, 5)))
+    UI.print(text, title="Stopped", border_style="red", box_type=box.HEAVY)
 
 @app.command(name="TIME")
 def current_time():
@@ -603,10 +658,10 @@ def current_time():
 
     if start_time:
         duration = calculate_duration(start_time, datetime.now())
-        console.print(Panel(Align.center(f"{T('current_session')}:\n[bold cyan]{format_duration(duration)}[/bold cyan] ⏱️", vertical="middle"), 
-                          title=T('active_timer'), border_style="cyan", box=box.ROUNDED, padding=(1, 4)))
+        UI.print(f"{T('current_session')}:\n[bold cyan]{format_duration(duration)}[/bold cyan] ⏱️", 
+                 title=T('active_timer'), border_style="cyan")
     else:
-        console.print(Panel(Align.center(f"[dim]{T('timer_inactive')}[/dim]", vertical="middle"), title="Status", border_style="dim", box=box.ROUNDED))
+        UI.print(f"[dim]{T('timer_inactive')}[/dim]", title="Status", border_style="dim")
 
 def calculate_daily_total(target_date: datetime) -> timedelta:
     conn = get_db_connection()
@@ -648,14 +703,13 @@ def time_today():
     now = datetime.now()
     total = calculate_daily_total(now)
     
-    console.print(Panel(Align.center(
-        f"{T('total_time_today')} ([cyan]{now.strftime('%d/%m/%Y')}[/cyan])\n[bold green]{format_duration(total)}[/bold green] 📅", vertical="middle"), 
-        title=T('daily_summary'), border_style="green", box=box.DOUBLE, padding=(1, 5)))
+    UI.print(f"{T('total_time_today')} ([cyan]{now.strftime('%d/%m/%Y')}[/cyan])\n[bold green]{format_duration(total)}[/bold green] 📅", 
+             title=T('daily_summary'), border_style="green", box_type=box.DOUBLE)
 
 @app.command(name="DB")
 def show_db_path():
     """Show database path."""
-    console.print(Panel(f"[bold]{T('database_path')}:[/bold]\n[blue]{DB_PATH}[/blue] 📂", title="Configuration", border_style="blue", box=box.ROUNDED))
+    UI.print(f"[bold]{T('database_path')}:[/bold]\n[blue]{DB_PATH}[/blue] 📂", title="Configuration", border_style="blue")
 
 @app.command(name="BACKUP")
 def backup_db():
@@ -668,7 +722,7 @@ def backup_db():
     ensure_logged_in()
     
     if not DB_PATH.exists():
-        console.print(Panel(f"[bold red]{T('database_exist_error')}[/bold red]", border_style="red"))
+        UI.print(f"[bold red]{T('database_exist_error')}[/bold red]", border_style="red")
         return
     
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
@@ -687,8 +741,8 @@ def backup_db():
     
     log_audit("BACKUP", f"Created backup at {backup_folder}")
     
-    console.print(Panel(f"{T('backup_created')}: [bold green]{backup_name}[/bold green]\n{T('location')}: [blue]{backup_folder}[/blue] 💾", 
-                      title="Backup Success", border_style="green", box=box.ROUNDED))
+    UI.print(f"{T('backup_created')}: [bold green]{backup_name}[/bold green]\n{T('location')}: [blue]{backup_folder}[/blue] 💾", 
+             title="Backup Success", border_style="green", box=box.ROUNDED)
 
 @app.command(name="TIME-SELECT")
 def time_select(date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
@@ -697,9 +751,8 @@ def time_select(date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
     ensure_logged_in()
     target_date = parse_date(date_str)
     total = calculate_daily_total(target_date)
-    console.print(Panel(Align.center(
-        f"{T('total_time_on')} [cyan]{date_str}[/cyan]\n[bold magenta]{format_duration(total)}[/bold magenta] 🗓️", vertical="middle"), 
-        title=T('historical_data'), border_style="magenta", box=box.ROUNDED))
+    UI.print(f"{T('total_time_on')} [cyan]{date_str}[/cyan]\n[bold magenta]{format_duration(total)}[/bold magenta] 🗓️", 
+             title=T('historical_data'), border_style="magenta", box=box.ROUNDED)
 
 @app.command(name="TIME-RANGE")
 def time_range(start_date_str: str = typer.Argument(..., metavar="dd/mm/yyyy"), end_date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
@@ -715,10 +768,9 @@ def time_range(start_date_str: str = typer.Argument(..., metavar="dd/mm/yyyy"), 
         total_duration += calculate_daily_total(current_date)
         current_date += timedelta(days=1)
         
-    console.print(Panel(Align.center(
-        f"Range: [cyan]{start_date_str}[/cyan] - [cyan]{end_date_str}[/cyan]\n"
-        f"{T('total_time')}: [bold orange1]{format_duration(total_duration)}[/bold orange1] 📊", vertical="middle"),
-        title=T('range_summary'), border_style="orange1", box=box.ROUNDED, padding=(1, 5)))
+    UI.print(f"Range: [cyan]{start_date_str}[/cyan] - [cyan]{end_date_str}[/cyan]\n"
+             f"{T('total_time')}: [bold orange1]{format_duration(total_duration)}[/bold orange1] 📊",
+             title=T('range_summary'), border_style="orange1", box=box.ROUNDED)
 
 @app.command(name="INIT-TIME")
 def init_time():
@@ -737,10 +789,10 @@ def init_time():
     
     if row:
         first_time = datetime.fromisoformat(row['timestamp'])
-        console.print(Panel(Align.center(f"{T('first_start_today')}:\n[bold cyan]{first_time.strftime('%H:%M:%S')}[/bold cyan] 🌅", vertical="middle"), 
-                          title="Start Time", border_style="cyan", box=box.ROUNDED))
+        UI.print(f"{T('first_start_today')}:\n[bold cyan]{first_time.strftime('%H:%M:%S')}[/bold cyan] 🌅", 
+                 title="Start Time", border_style="cyan", box_type=box.ROUNDED)
     else:
-        console.print(Panel(Align.center(f"[dim]{T('no_sessions_today')}[/dim]", vertical="middle"), title="Start Time", border_style="dim"))
+        UI.print(f"[dim]{T('no_sessions_today')}[/dim]", title="Start Time", border_style="dim")
 
 @app.command(name="INIT-TIME_WHEN")
 def init_time_when(date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
@@ -761,10 +813,9 @@ def init_time_when(date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
     
     if row:
         first_time = datetime.fromisoformat(row['timestamp'])
-        console.print(Panel(Align.center(f"{T('first_start_on')} [cyan]{date_str}[/cyan]:\n[bold cyan]{first_time.strftime('%H:%M:%S')}[/bold cyan] 🗓️", vertical="middle"), 
-                          title="Historical Start Time", border_style="cyan", box=box.ROUNDED))
+        UI.print(f"{T('first_start_on')} [cyan]{date_str}[/cyan]:\n[bold cyan]{first_time.strftime('%H:%M:%S')}[/bold cyan] 🗓️", title="Historical Start Time", border_style="cyan")
     else:
-        console.print(Panel(f"[dim]{T('no_sessions_found')} {date_str}.[/dim]", title="Historical Start Time", border_style="dim"))
+        UI.print(f"[dim]{T('no_sessions_found')} {date_str}.[/dim]", title="Historical Start Time", border_style="dim")
 
 
 @app.command(name="CLEAR-ALL")
@@ -792,8 +843,8 @@ def show_lang():
     """Show current language."""
     init_db()
     lang = get_language()
-    console.print(Panel(Align.center(f"{T('language_current')}: [bold cyan]{lang}[/bold cyan] 🌍", vertical="middle"), 
-                      title="Configuration", border_style="blue", box=box.ROUNDED))
+    UI.print(f"{T('language_current')}: [bold cyan]{lang}[/bold cyan] 🌍", 
+             title="Configuration", border_style="blue")
 
 @app.command(name="LANG-SET")
 def set_lang_command(code: Optional[str] = typer.Argument(None)):
@@ -806,7 +857,7 @@ def set_lang_command(code: Optional[str] = typer.Argument(None)):
         if code in TRANSLATIONS:
             set_config("language", code)
             new_lang_text = TRANSLATIONS[code]["language_updated"]
-            console.print(Panel(f"[bold green]{new_lang_text} {code}![/bold green]", border_style="green"))
+            UI.print(f"[bold green]{new_lang_text} {code}![/bold green]", border_style="green")
             return
         else:
              console.print(f"[yellow]Invalid code '{code}'. Showing menu...[/yellow]")
@@ -820,7 +871,7 @@ def set_lang_command(code: Optional[str] = typer.Argument(None)):
     if choice in TRANSLATIONS:
         set_config("language", choice)
         new_lang_text = TRANSLATIONS[choice]["language_updated"]
-        console.print(Panel(f"[bold green]{new_lang_text} {choice}![/bold green]", border_style="green"))
+        UI.print(f"[bold green]{new_lang_text} {choice}![/bold green]", border_style="green")
     else:
         console.print(f"[red]Invalid code. Available: {', '.join(TRANSLATIONS.keys())}[/red]")
 
@@ -831,7 +882,7 @@ def set_lang_command(code: Optional[str] = typer.Argument(None)):
 def ai_config():
     """Configure AI Provider and Key."""
     init_db()
-    console.print(Panel(f"[bold]{T('ai_config_menu')}[/bold]", border_style="blue"))
+    UI.print(f"[bold]{T('ai_config_menu')}[/bold]", border_style="blue")
     
     console.print(f"1. GEMINI (Google)")
     console.print(f"2. OPENAI (ChatGPT)")
@@ -847,6 +898,8 @@ def ai_config():
     if api_key:
         set_config("ai_provider", provider)
         set_config("ai_api_key", api_key)
+        UI.print(f"[bold green]AI Configured successfully![/bold green]", border_style="green")
+        set_config("ai_api_key", api_key)
         console.print(Panel(f"[bold green]{T('ai_key_saved')} {provider}![/bold green]", border_style="green"))
 
 @app.command(name="AI-GEN-ASK")
@@ -859,29 +912,43 @@ def ai_gen_ask(question: str):
     api_key = get_config("ai_api_key")
     
     if not provider or not api_key:
-        console.print(Panel(f"[yellow]AI not configured. Run 'work AI-CONFIG' first.[/yellow]", border_style="yellow"))
+        UI.print(f"[yellow]AI not configured. Run 'work AI-CONFIG' first.[/yellow]", border_style="yellow")
         return
 
     from ai_handler import AIHandler
     
     # Loading
-    with console.status(f"[bold green]{T('ai_analyzing')} {provider}...[/bold green]"):
+    if UI.is_fast_mode():
+        print(f"Analyzing {provider}...")
         try:
-            handler = AIHandler(provider, api_key)
-            
-            # Get all events
-            conn = get_db_connection()
-            cursor = conn.execute("SELECT timestamp, event_type FROM events ORDER BY timestamp ASC")
-            events = [dict(row) for row in cursor.fetchall()]
-            conn.close()
-            
-            context = handler.format_context(events)
-            response = handler.ask_ai(question, context)
-            
-            console.print(Panel(response, title=f"🤖 {provider} Response", border_style="magenta", box=box.ROUNDED))
-            
+             handler = AIHandler(provider, api_key)
+             conn = get_db_connection()
+             cursor = conn.execute("SELECT timestamp, event_type FROM events ORDER BY timestamp ASC")
+             events = [dict(row) for row in cursor.fetchall()]
+             conn.close()
+             context = handler.format_context(events)
+             response = handler.ask_ai(question, context)
+             UI.print(response, title=f"🤖 {provider} Response", border_style="magenta")
         except Exception as e:
-            console.print(Panel(f"[bold red]{T('ai_error')}: {e}[/bold red]", border_style="red"))
+            UI.print(f"[bold red]{T('ai_error')}: {e}[/bold red]", border_style="red")
+    else:
+        with console.status(f"[bold green]{T('ai_analyzing')} {provider}...[/bold green]"):
+            try:
+                handler = AIHandler(provider, api_key)
+                
+                # Get all events
+                conn = get_db_connection()
+                cursor = conn.execute("SELECT timestamp, event_type FROM events ORDER BY timestamp ASC")
+                events = [dict(row) for row in cursor.fetchall()]
+                conn.close()
+                
+                context = handler.format_context(events)
+                response = handler.ask_ai(question, context)
+                
+                UI.print(response, title=f"🤖 {provider} Response", border_style="magenta", box_type=box.ROUNDED)
+                
+            except Exception as e:
+                UI.print(f"[bold red]{T('ai_error')}: {e}[/bold red]", border_style="red")
 
 @app.command(name="AI-SEL-ASK-RANGE-TIME")
 def ai_range_ask(start_date_str: str, end_date_str: str, question: str):
@@ -925,10 +992,10 @@ def ai_range_ask(start_date_str: str, end_date_str: str, question: str):
             context = handler.format_context(events)
             response = handler.ask_ai(question, context)
             
-            console.print(Panel(response, title=f"🤖 {provider} Response ({start_date_str} - {end_date_str})", border_style="magenta", box=box.ROUNDED))
+            UI.print(response, title=f"🤖 {provider} Response ({start_date_str} - {end_date_str})", border_style="magenta")
 
         except Exception as e:
-            console.print(Panel(f"[bold red]{T('ai_error')}: {e}[/bold red]", border_style="red"))
+            UI.print(f"[bold red]{T('ai_error')}: {e}[/bold red]", border_style="red")
 
 
 # --- Export Commands ---
@@ -1071,10 +1138,10 @@ def export_csv(start_date_str: str, end_date_str: str):
         
         sessions = process_sessions(events)
         path = generate_csv_file(sessions, start_date_str, end_date_str)
-        console.print(Panel(f"{T('export_csv_success')}:\n[blue]{path}[/blue] 📊", border_style="green"))
+        UI.print(f"{T('export_csv_success')}:\n[blue]{path}[/blue] 📊", border_style="green")
 
     except Exception as e:
-        console.print(Panel(f"[bold red]Error: {e}[/bold red]", border_style="red"))
+        UI.print(f"[bold red]Error: {e}[/bold red]", border_style="red")
 
 @app.command(name="EXPORT-PDF")
 def export_pdf(start_date_str: str, end_date_str: str):
@@ -1096,10 +1163,10 @@ def export_pdf(start_date_str: str, end_date_str: str):
         
         sessions = process_sessions(events)
         path = generate_pdf_file(sessions, start_date_str, end_date_str)
-        console.print(Panel(f"{T('export_pdf_success')}:\n[blue]{path}[/blue] 📄", border_style="green"))
+        UI.print(f"{T('export_pdf_success')}:\n[blue]{path}[/blue] 📄", border_style="green")
 
     except Exception as e:
-         console.print(Panel(f"[bold red]Error: {e}[/bold red]", border_style="red"))
+         UI.print(f"[bold red]Error: {e}[/bold red]", border_style="red")
 
 def open_email_client(file_path: str, subject: str, body: str):
     """Open default email client with attachment."""
@@ -1109,7 +1176,7 @@ def open_email_client(file_path: str, subject: str, body: str):
     if SYSTEM_PLATFORM == "Linux" and shutil.which("xdg-email"):
         try:
             subprocess.call(["xdg-email", "--subject", subject, "--body", body, "--attach", file_path])
-            console.print(Panel(f"[green]{T('email_sent_auto')}[/green]", border_style="green"))
+            UI.print(f"[green]{T('email_sent_auto')}[/green]", border_style="green")
             return
         except Exception:
             pass # Fallback
@@ -1124,7 +1191,7 @@ def open_email_client(file_path: str, subject: str, body: str):
     mailto = f"mailto:?{qs}"
     
     webbrowser.open(mailto)
-    console.print(Panel(f"[yellow]{T('email_manual_hint')}[/yellow]\n[bold]{file_path}[/bold]", border_style="yellow"))
+    UI.print(f"[yellow]{T('email_manual_hint')}[/yellow]\n[bold]{file_path}[/bold]", border_style="yellow")
 
 def get_events_from_db(db_path, start_date_str, end_date_str):
     """Generic fetcher."""
@@ -1158,9 +1225,10 @@ def get_events_from_db(db_path, start_date_str, end_date_str):
 def send_to():
     """Generate report and email it."""
     init_db()
+    ensure_logged_in()
     
     # Interactive Prompts
-    console.print(f"[bold]{T('language_select')} Range:[/bold]") # Reuse? No, Custom prompt
+    UI.print(f"[bold]{T('language_select')} Range:[/bold]") # Reuse? No, Custom prompt
     console.print("1. Today")
     console.print("2. This Month")
     console.print("3. Custom Range")
@@ -1187,7 +1255,7 @@ def send_to():
     # Events
     events = get_events_from_db(DB_PATH, s_str, e_str)
     if not events:
-        console.print("[yellow]No data found.[/yellow]")
+        UI.print("[yellow]No data found.[/yellow]")
         return
 
     sessions = process_sessions(events)
@@ -1205,16 +1273,19 @@ def send_to():
 @app.command(name="SEND-BACKUP-TO")
 def send_backup_to():
     """Email report from a backup file."""
+    init_db()
+    ensure_logged_in()
+
     if not BACKUP_DIR.exists():
-        console.print(f"[red]{T('backup_not_found')}[/red]")
+        UI.print(f"[red]{T('backup_not_found')}[/red]", border_style="red")
         return
         
     backups = sorted(BACKUP_DIR.glob("*.db"), key=os.path.getmtime, reverse=True)
     if not backups:
-        console.print(f"[red]{T('backup_not_found')}[/red]")
+        UI.print(f"[red]{T('backup_not_found')}[/red]", border_style="red")
         return
 
-    console.print("[bold]Select Backup:[/bold]")
+    UI.print("[bold]Select Backup:[/bold]")
     for i, b in enumerate(backups[:10]):
         console.print(f"{i+1}. {b.name}")
         
@@ -1307,7 +1378,7 @@ def load_backup(filename: str):
     
     backup_path = BACKUP_DIR / filename
     if not backup_path.exists():
-        console.print(Panel(f"[bold red]{T('backup_not_found')}: {filename}[/bold red]", border_style="red"))
+        UI.print(f"[bold red]{T('backup_not_found')}: {filename}[/bold red]", border_style="red")
         return
         
     if typer.confirm(f"{T('backup_restore_confirm')} '{filename}'?", abort=True):
@@ -1317,9 +1388,9 @@ def load_backup(filename: str):
             # In this script execution, we haven't opened yet unless init_db called.
             # We overwrite DB_PATH
             shutil.copy(backup_path, DB_PATH)
-            console.print(Panel(f"[bold green]{T('backup_restored')}[/bold green]", border_style="green"))
+            UI.print(f"[bold green]{T('backup_restored')}[/bold green]", border_style="green")
         except Exception as e:
-            console.print(Panel(f"[bold red]Restore Error: {e}[/bold red]", border_style="red"))
+            UI.print(f"[bold red]Restore Error: {e}[/bold red]", border_style="red")
 
 @app.command(name="CONFIG-BACKUP-AUTO")
 def config_backup(frequency: str, interval: int = 1):
@@ -1331,14 +1402,14 @@ def config_backup(frequency: str, interval: int = 1):
     init_db()
     freq = frequency.upper()
     if freq not in ["DAILY", "MONTHLY", "NEVER", "CUSTOM"]:
-         console.print("[red]Invalid Frequency. Use: DAILY, MONTHLY, NEVER, CUSTOM[/red]")
+         UI.print("[red]Invalid Frequency. Use: DAILY, MONTHLY, NEVER, CUSTOM[/red]", border_style="red")
          return
          
     set_config("backup_freq", freq)
     if freq == "CUSTOM":
         set_config("backup_interval", str(interval))
         
-    console.print(Panel(f"[bold green]{T('backup_config_updated')} {freq}[/bold green]", border_style="green"))
+    UI.print(f"[bold green]{T('backup_config_updated')} {freq}[/bold green]", border_style="green")
 
 
 
@@ -1400,7 +1471,7 @@ def init_encryption(check_first: bool = False):
     with open(KEY_PATH, "wb") as key_file:
         key_file.write(key)
     
-    console.print(Panel(f"[bold green]{T('encrypt_key_setup')}[/bold green]\n{T('encrypt_key_saved')}", border_style="green"))
+    UI.print(f"[bold green]{T('encrypt_key_setup')}[/bold green]\n{T('encrypt_key_saved')}", border_style="green")
     load_key() # Reload
     
     # Enable:
@@ -1416,14 +1487,14 @@ def get_key():
         # Read as binary then decode to show string
         with open(KEY_PATH, "rb") as f:
             k = f.read().decode()
-        console.print(Panel(f"[bold red]SECRET KEY:[/bold red]\n{k}", border_style="red"))
+        UI.print(f"[bold red]SECRET KEY:[/bold red]\n{k}", border_style="red")
     else:
-        console.print(f"[yellow]{T('backup_not_found')} (Key)[/yellow]")
+        UI.print(f"[yellow]{T('backup_not_found')} (Key)[/yellow]", border_style="yellow")
 
 @app.command(name="CHANGE-KEY")
 def change_key():
     """Change the encryption key (WIPES DATA)."""
-    console.print(Panel(f"[bold red]{T('encrypt_warning_wipe')}[/bold red]", border_style="red"))
+    UI.print(f"[bold red]{T('encrypt_warning_wipe')}[/bold red]", border_style="red")
     if not typer.confirm("Confirm reset?"):
         return
         
@@ -1434,10 +1505,10 @@ def change_key():
     try:
         if DB_PATH.exists(): os.remove(DB_PATH)
         if KEY_PATH.exists(): os.remove(KEY_PATH)
-        console.print("[green]Data wiped. Starting setup...[/green]")
+        UI.print("[green]Data wiped. Starting setup...[/green]", border_style="green")
         init_encryption()
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        UI.print(f"[red]Error: {e}[/red]", border_style="red")
 
 @app.command(name="ENCRIPT-ON")
 def encrypt_on():
@@ -1468,7 +1539,7 @@ def encrypt_on():
             
     conn.commit()
     conn.close()
-    console.print(Panel(f"[bold green]{T('encrypt_enabled')}[/bold green]", border_style="green"))
+    UI.print(f"[bold green]{T('encrypt_enabled')}[/bold green]", border_style="green")
 
 @app.command(name="ENCRIPT-OFF")
 def encrypt_off():
@@ -1476,7 +1547,7 @@ def encrypt_off():
     global FERNET
     init_db()
     if not FERNET:
-        console.print("[red]Encryption not active.[/red]")
+        UI.print("[red]Encryption not active.[/red]", border_style="red")
         return
         
     # Migrate: Encrypt -> Plain
@@ -1498,7 +1569,7 @@ def encrypt_off():
         
     FERNET = None
     
-    console.print(Panel(f"[bold yellow]{T('encrypt_disabled')}[/bold yellow]", border_style="yellow"))
+    UI.print(f"[bold yellow]{T('encrypt_disabled')}[/bold yellow]", border_style="yellow")
 
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):

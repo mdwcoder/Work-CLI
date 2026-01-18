@@ -104,6 +104,14 @@ All sensitive actions (Logins, Deletions, Backups) are recorded in `logs/log.txt
 
 ---
 
+## ⚡ Fast Mode
+Toggle "Fast Mode" to disable rich UI elements (panels, colors) for a cleaner, plain-text experience.
+
+*   **Enable**: `work FAST-MODE`
+*   **Disable**: `work NORMAL-MODE`
+
+---
+
 ## 🤖 AI Integration (Gemini)
 
 Unlock insights about your work patterns.
