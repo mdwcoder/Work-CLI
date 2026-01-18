@@ -32,7 +32,7 @@ if (-not (Test-Path $VenvDir)) {
 Write-Host "⬇️  Installing/Updating Dependencies..." -ForegroundColor Yellow
 $Pip = Join-Path $VenvDir "Scripts\pip.exe"
 & $Pip install --upgrade pip --quiet
-& $Pip install rich typer --quiet
+& $Pip install rich typer cryptography xhtml2pdf --quiet
 
 # 4. Create Function/Alias in Profile
 $ProfileDir = Split-Path $PROFILE -Parent
@@ -59,6 +59,33 @@ if ($CurrentProfile -match "Work-CLI Alias") {
     Add-Content -Path $PROFILE -Value $FunctionDefinition
     Write-Host "✅ Added 'work' alias to your PowerShell profile." -ForegroundColor Green
 }
+
+# 5. Language Selection
+Write-Host ""
+Write-Host "Select Language:"
+Write-Host "1. SPANISH (ES)"
+Write-Host "2. ENGLISH (EN)"
+Write-Host "3. FRENCH (FR)"
+Write-Host "4. PORTUGUESE (PT)"
+$LangOpt = Read-Host "Number [1-4]"
+
+$PythonExe = Join-Path $VenvDir "Scripts\python.exe"
+switch ($LangOpt) {
+    "1" { & $PythonExe "$PythonScript" LANG-SET ES }
+    "2" { & $PythonExe "$PythonScript" LANG-SET EN }
+    "3" { & $PythonExe "$PythonScript" LANG-SET FR }
+    "4" { & $PythonExe "$PythonScript" LANG-SET PT }
+    Default { Write-Host "Defaulting to System/English." -ForegroundColor DarkGray }
+}
+
+# 6. User Registration & Security
+Write-Host ""
+Write-Host "👤 Creating Admin User..." -ForegroundColor Cyan
+& $PythonExe "$PythonScript" REGISTER
+
+Write-Host ""
+Write-Host "🔐 Checking Encryption..." -ForegroundColor Cyan
+& $PythonExe "$PythonScript" INIT-ENCRYPTION --check-first
 
 Write-Host ""
 Write-Host "🎉 Installation Complete!" -ForegroundColor Green

@@ -139,6 +139,20 @@ Send reports directly to your email client (Thunderbird, Outlook, etc.).
 
 *Supports auto-attachment on Linux (`xdg-email`). On other OSs, it opens a draft and asks you to attach the file manually.*
 
+### 🔐 Privacy & Encryption (New!)
+- **AES-256** Encryption for your descriptions.
+- `work ENCRIPT-ON` / `work ENCRIPT-OFF`: Toggle encryption.
+- `work CHANGE-KEY`: Rotate keys (Requires backup/restore).
+
+### 👤 Multi-User & Security (New!)
+Secure isolation for shared environments.
+- **Login Required**: All commands (except help) require an active session.
+- **Commands**:
+    - `work REGISTER`: Create a new user.
+    - `work LOGIN`: Start session.
+    - `work USER-DELETE`: Permanently delete user and data.
+- **Audit Logs**: Events tracked in `logs/log.txt`.
+
 ### 9. 💾 Backup Management (Advanced)
 By default, the system creates backups automatically (Frequency: MONTHLY).
 
@@ -151,7 +165,7 @@ work CONFIG-BACKUP-AUTO NEVER      # Disable auto-backup
 
 # Restore from a backup file (WARNING: Overwrites current data)
 # Files are located in the 'backup/' directory
-work LOAD-BACKUP backup_20260101_120000.db
+work LOAD-BACKUP
 ```
 
 ## ⚙️ Technical Details
