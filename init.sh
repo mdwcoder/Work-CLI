@@ -109,8 +109,12 @@ else
 fi
 
 # ------------------------------------------------------------------
-# Encryption Setup (Interactive)
+# User Registration & Security
 # ------------------------------------------------------------------
+echo -e "${BLUE}👤 Creating Admin User...${NC}"
+"$VENV_DIR/bin/python" "src/Working_Code.py" REGISTER
+
+echo -e "${BLUE}🔐 Checking Encryption...${NC}"
 "$VENV_DIR/bin/python" "src/Working_Code.py" INIT-ENCRYPTION --check-first
 
 echo ""

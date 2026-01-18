@@ -100,7 +100,17 @@ TRANSLATIONS = {
         "email_subject": "Work Report",
         "email_body_prompt": "Enter email body text",
         "email_sent_auto": "Email client opened with attachment.",
-        "email_manual_hint": "If it didn't open, please compose email manually and attach:"
+        "email_manual_hint": "If it didn't open, please compose email manually and attach:",
+        "auth_login_required": "Login Required. Use 'work LOGIN' or 'work REGISTER'.",
+        "auth_register_success": "User registered successfully!",
+        "auth_login_success": "Logged in as",
+        "auth_logout": "Logged out.",
+        "auth_failed": "Authentication Failed. Invalid username or password.",
+        "auth_user_delete_confirm": "WARNING: This will permanently delete your user and ALL your data. Password required:",
+        "desc_login": "Login to your account",
+        "desc_register": "Create a new account",
+        "desc_user_delete": "Delete account (Permanent)",
+        "desc_logout": "End session"
     },
     "ES": {
         "error_critical_dir": "ERROR CRÍTICO: No se puede crear el directorio de datos",
@@ -203,7 +213,17 @@ TRANSLATIONS = {
         "email_subject": "Reporte de Trabajo",
         "email_body_prompt": "Ingresa el texto del correo",
         "email_sent_auto": "Cliente de correo abierto con adjunto.",
-        "email_manual_hint": "Si no abrió, por favor adjunta manualmente:"
+        "email_manual_hint": "Si no abrió, por favor adjunta manualmente:",
+        "auth_login_required": "Inicio de Sesión Requerido. Usa 'work LOGIN' o 'work REGISTER'.",
+        "auth_register_success": "¡Usuario registrado con éxito!",
+        "auth_login_success": "Sesión iniciada como",
+        "auth_logout": "Sesión cerrada.",
+        "auth_failed": "Fallo de Autenticación. Usuario o contraseña inválidos.",
+        "auth_user_delete_confirm": "ADVERTENCIA: Esto borrará permanentemente tu usuario y TODOS tus datos. Contraseña requerida:",
+        "desc_login": "Iniciar sesión",
+        "desc_register": "Crear cuenta nueva",
+        "desc_user_delete": "Borrar cuenta (Permanente)",
+        "desc_logout": "Cerrar sesión"
     },
     "FR": {
         "error_critical_dir": "ERREUR CRITIQUE: Impossible de créer le répertoire",
@@ -306,7 +326,17 @@ TRANSLATIONS = {
         "email_subject": "Rapport de Travail",
         "email_body_prompt": "Entrez le texte du courriel",
         "email_sent_auto": "Client de messagerie ouvert.",
-        "email_manual_hint": "Si non ouvert, veuillez joindre manuellement:"
+        "email_manual_hint": "Si non ouvert, veuillez joindre manuellement:",
+        "auth_login_required": "Connexion requise. Utilisez 'work LOGIN' ou 'work REGISTER'.",
+        "auth_register_success": "Utilisateur enregistré avec succès!",
+        "auth_login_success": "Connecté en tant que",
+        "auth_logout": "Déconnecté.",
+        "auth_failed": "Échec de l'authentification. Nom d'utilisateur ou mot de passe invalide.",
+        "auth_user_delete_confirm": "ATTENTION: Cela supprimera définitivement votre compte et TOUTES vos données. Mot de passe requis:",
+        "desc_login": "Se connecter",
+        "desc_register": "Créer un compte",
+        "desc_user_delete": "Supprimer compte (Permanent)",
+        "desc_logout": "Se déconnecter"
     },
     "PT": {
         "error_critical_dir": "ERRO CRÍTICO: Não é possível criar diretório",
@@ -409,7 +439,17 @@ TRANSLATIONS = {
         "email_subject": "Relatório de Trabalho",
         "email_body_prompt": "Digite o texto do email",
         "email_sent_auto": "Cliente de email aberto.",
-        "email_manual_hint": "Se não abriu, anexe manualmente:"
+        "email_manual_hint": "Se não abriu, anexe manualmente:",
+        "auth_login_required": "Login Necessário. Use 'work LOGIN' ou 'work REGISTER'.",
+        "auth_register_success": "Usuário registrado com sucesso!",
+        "auth_login_success": "Logado como",
+        "auth_logout": "Deslogado.",
+        "auth_failed": "Falha na autenticação. Usuário ou senha inválidos.",
+        "auth_user_delete_confirm": "AVISO: Isso apagará permanentemente seu usuário e TODOS os seus dados. Senha necessária:",
+        "desc_login": "Fazer login",
+        "desc_register": "Criar nova conta",
+        "desc_user_delete": "Apagar conta (Permanente)",
+        "desc_logout": "Sair da sessão"
     }
 }
 

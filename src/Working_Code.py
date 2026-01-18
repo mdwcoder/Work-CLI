@@ -107,32 +107,7 @@ def get_db_connection():
         console.print(f"[{WARNING_STYLE}]{T('database_locked_hint')}[/{WARNING_STYLE}]")
         raise typer.Exit(code=1)
 
-def init_db():
-    conn = get_db_connection()
-    # Events Table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            event_type TEXT NOT NULL,
-            description TEXT
-        )
-    ''')
-    # Migration for existing DBs if needed
-    try:
-        conn.execute("ALTER TABLE events ADD COLUMN description TEXT")
-    except sqlite3.OperationalError:
-        pass # Column likely exists
-    
-    # Config Table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS config (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        )
-    ''')
-    conn.commit()
-    conn.close()
+
 
 def get_config(key: str) -> Optional[str]:
     conn = get_db_connection()
@@ -145,9 +120,352 @@ def get_config(key: str) -> Optional[str]:
     finally:
         conn.close()
 
+import hashlib
+import secrets
+
+# Logging Config
+LOGS_DIR = SCRIPT_DIR.parent / "logs"
+LOG_FILE = LOGS_DIR / "log.txt"
+
+def log_audit(action: str, details: str = ""):
+    """Append to audit log."""
+    if not LOGS_DIR.exists():
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        
+    user = get_current_user_name() or "SYSTEM/GUEST"
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    entry = f"[{timestamp}] [{user}] [{action}] {details}\n"
+    
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(entry)
+
 def set_config(key: str, value: str):
     conn = get_db_connection()
     conn.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
+    conn.commit()
+    conn.close()
+
+def init_db():
+    conn = get_db_connection()
+    
+    # Users Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            salt TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    ''')
+    
+    # Events Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            description TEXT,
+            user_id INTEGER
+        )
+    ''')
+    
+    # Migrations
+    try:
+        conn.execute("ALTER TABLE events ADD COLUMN description TEXT")
+    except sqlite3.OperationalError:
+        pass 
+        
+    try:
+        conn.execute("ALTER TABLE events ADD COLUMN user_id INTEGER")
+    except sqlite3.OperationalError:
+        pass
+
+    # Config Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+    
+# --- Auth Helpers ---
+
+def hash_password(password: str) -> (str, str):
+    """Return (hash, salt)."""
+    salt = secrets.token_hex(16)
+    pw_hash = hashlib.pbkdf2_hmac(
+        'sha256', 
+        password.encode('utf-8'), 
+        salt.encode('utf-8'), 
+        100000
+    ).hex()
+    return pw_hash, salt
+
+def verify_password(stored_password, stored_salt, provided_password) -> bool:
+    """Verify password against storage."""
+    pw_hash = hashlib.pbkdf2_hmac(
+        'sha256', 
+        provided_password.encode('utf-8'), 
+        stored_salt.encode('utf-8'), 
+        100000
+    ).hex()
+    return pw_hash == stored_password
+
+def get_current_user_id() -> Optional[int]:
+    """Get logged in user ID from config."""
+    uid = get_config("current_user_id")
+    if uid and uid.isdigit():
+        return int(uid)
+    return None
+
+def get_current_user_name() -> Optional[str]:
+    """Get username for logging/display."""
+    uid = get_current_user_id()
+    if not uid:
+        return None
+        
+    conn = get_db_connection()
+    row = conn.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
+    conn.close()
+    return row['username'] if row else None
+
+
+def ensure_logged_in():
+    """Check login status, exit if failed."""
+    if not get_current_user_id():
+        console.print(f"[red]{T('auth_login_required')}[/red]")
+        raise typer.Exit(code=1)
+
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
+    """
+    ⚡ Work-CLI: Time Tracking, Reporting & Privacy.
+    """
+    # Whitelist of commands allowed without login
+    whitelist = ["REGISTER", "LOGIN", "LANG-SET", "LANG", "DB", "AI-CONFIG"]
+    
+    # If no command is invoked (just 'work'), we show help or status.
+    # If help is invoked (-h, --help), typer handles it.
+    
+    if ctx.invoked_subcommand and ctx.invoked_subcommand.upper() not in whitelist:
+         # Check login for everything else
+         if not get_current_user_id():
+             # Exception: If DB is empty/no users, maybe prompt register?
+             # But init.sh handles that. Here just block.
+             console.print(f"[bold red]🚫 {T('auth_login_required')}[/bold red]")
+             raise typer.Exit(code=1)
+
+    if ctx.invoked_subcommand is None:
+        print_banner(T('app_subtitle'))
+        
+        # Show status table
+        table = Table(box=box.SIMPLE)
+        table.add_column("Command", style="cyan")
+        table.add_column("Description", style="white")
+        table.add_column("Example", style="dim")
+        
+        cmds = [
+            ("ON [Desc]", "desc_start", "work ON 'Project A'"),
+            ("OFF", "desc_stop", "work OFF"),
+            ("TIME", "desc_time", "work TIME"),
+            ("TIME-TODAY", "desc_today", "work TIME-TODAY"),
+            ("TIME-SELECT", "desc_select", "work TIME-SELECT 01/01/2024"),
+            ("TIME-RANGE", "desc_range", "work TIME-RANGE 01/01/2024 31/01/2024"),
+            ("INIT-TIME", "desc_init", "work INIT-TIME"),
+            ("INIT-TIME_WHEN", "desc_init_when", "work INIT-TIME_WHEN 01/01/2024"),
+            ("AI-GEN-ASK", "desc_ai_ask", "work AI-GEN-ASK \"Trend?\""),
+            ("AI-SEL-ASK-RANGE-TIME", "desc_ai_range_ask", "work AI-SEL-ASK-RANGE-TIME d1 d2 \"Query\""),
+            ("EXPORT-CSV", "desc_export_csv", "work EXPORT-CSV d1 d2"),
+            ("EXPORT-PDF", "desc_export_pdf", "work EXPORT-PDF d1 d2"),
+            ("SEND-TO", "desc_send_to", "work SEND-TO"),
+            ("SEND-BACKUP-TO", "desc_send_backup_to", "work SEND-BACKUP-TO"),
+            ("INIT-ENCRYPTION", "desc_init_encryption", "work INIT-ENCRYPTION"),
+            ("GET-KEY", "desc_get_key", "work GET-KEY"),
+            ("CHANGE-KEY", "desc_change_key", "work CHANGE-KEY"),
+            ("ENCRIPT-ON", "desc_encrypt_on", "work ENCRIPT-ON"),
+            ("ENCRIPT-OFF", "desc_encrypt_off", "work ENCRIPT-OFF"),
+            ("LOGOUT", "desc_logout", "work LOGOUT"),
+            ("USER-DELETE", "desc_user_delete", "work USER-DELETE"),
+            ("REGISTER", "desc_register", "work REGISTER"),
+            ("LOGIN", "desc_login", "work LOGIN"),
+            ("BACKUP", "desc_backup", "work BACKUP"),
+            ("CONF-BACKUP-AUTO", "desc_conf_backup", "work CONF-BACKUP-AUTO"),
+            ("LOAD-BACKUP", "desc_load_backup", "work LOAD-BACKUP"),
+            ("AI-CONFIG", "desc_ai_config", "work AI-CONFIG"),
+            ("LANG-SET", "desc_lang_set", "work LANG-SET ES"),
+            ("DB", "desc_db", "work DB"),
+            ("CLEAR-ALL", "desc_clear", "work CLEAR-ALL"),
+        ]
+        
+        for cmd, desc_key, ex in cmds:
+            table.add_row(cmd, T(desc_key), ex)
+            
+        console.print(table)
+        
+        # User Status
+        user = get_current_user_name()
+        if user:
+            console.print(f"\n[green]Logged in as: {user}[/green]")
+        else:
+            console.print(f"\n[yellow]Not logged in.[/yellow]")
+
+@app.command(name="EXPORT-CSV")
+def export_csv(start_date_str: str, end_date_str: str):
+    """Export work history to CSV."""
+    init_db()
+    ensure_logged_in()
+    try:
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str)
+        s_iso = start_date.strftime("%Y-%m-%dT00:00:00")
+        e_iso = (end_date + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00")
+        uid = get_current_user_id()
+        
+        conn = get_db_connection()
+        cursor = conn.execute(
+            "SELECT timestamp, event_type, description FROM events WHERE timestamp >= ? AND timestamp < ? AND user_id=? ORDER BY timestamp ASC",
+            (s_iso, e_iso, uid)
+        )
+        events = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        sessions = process_sessions(events)
+        path = generate_csv_file(sessions, start_date_str, end_date_str)
+        console.print(Panel(f"{T('export_csv_success')}:\n[blue]{path}[/blue] 📊", border_style="green"))
+
+    except Exception as e:
+        console.print(Panel(f"[bold red]Error: {e}[/bold red]", border_style="red"))
+
+@app.command(name="EXPORT-PDF")
+def export_pdf(start_date_str: str, end_date_str: str):
+    """Export work history to PDF."""
+    init_db()
+    ensure_logged_in()
+    try:
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str)
+        s_iso = start_date.strftime("%Y-%m-%dT00:00:00")
+        e_iso = (end_date + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00")
+        uid = get_current_user_id()
+        
+        conn = get_db_connection()
+        cursor = conn.execute(
+            "SELECT timestamp, event_type, description FROM events WHERE timestamp >= ? AND timestamp < ? AND user_id=? ORDER BY timestamp ASC",
+            (s_iso, e_iso, uid)
+        )
+        events = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        sessions = process_sessions(events)
+        path = generate_pdf_file(sessions, start_date_str, end_date_str)
+        console.print(Panel(f"{T('export_pdf_success')}:\n[blue]{path}[/blue] 📊", border_style="green"))
+
+    except Exception as e:
+        console.print(Panel(f"[bold red]Error: {e}[/bold red]", border_style="red"))
+
+@app.command(name="REGISTER")
+def register_user():
+    """Create a new user."""
+    init_db()
+    console.print(Panel(f"[bold]{T('desc_register')}[/bold]", border_style="blue"))
+    
+    username = typer.prompt("Username")
+    password = typer.prompt("Password", hide_input=True)
+    confirm = typer.prompt("Confirm Password", hide_input=True)
+    
+    if password != confirm:
+        console.print("[red]Passwords do not match.[/red]")
+        raise typer.Exit(1)
+        
+    pw_hash, salt = hash_password(password)
+    
+    conn = get_db_connection()
+    try:
+        # Check if first user
+        count = conn.execute("SELECT COUNT(*) as c FROM users").fetchone()['c']
+        is_first = (count == 0)
+        
+        conn.execute(
+            "INSERT INTO users (username, password_hash, salt, created_at) VALUES (?, ?, ?, ?)",
+            (username, pw_hash, salt, datetime.now().isoformat())
+        )
+        user_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        
+        # Claim orphans if first user
+        if is_first:
+            conn.execute("UPDATE events SET user_id = ? WHERE user_id IS NULL", (user_id,))
+            console.print("[yellow]First user: Claimed all existing events.[/yellow]")
+            
+        conn.commit()
+        console.print(f"[green]{T('auth_register_success')}[/green]")
+        log_audit("REGISTER", f"New user: {username}")
+        
+        # Auto-login
+        set_config("current_user_id", str(user_id))
+        
+    except sqlite3.IntegrityError:
+        console.print("[red]Username already exists.[/red]")
+    finally:
+        conn.close()
+
+@app.command(name="LOGIN")
+def login_user():
+    """Login to application."""
+    init_db()
+    username = typer.prompt("Username")
+    password = typer.prompt("Password", hide_input=True)
+    
+    conn = get_db_connection()
+    user = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+    conn.close()
+    
+    if user and verify_password(user['password_hash'], user['salt'], password):
+        set_config("current_user_id", str(user['id']))
+        console.print(f"[green]{T('auth_login_success')} {username}[/green]")
+        log_audit("LOGIN", "Success")
+    else:
+        console.print(f"[red]{T('auth_failed')}[/red]")
+        log_audit("LOGIN", f"Failed attempt for {username}")
+        
+@app.command(name="LOGOUT")
+def logout_user():
+    """Logout session."""
+    init_db()
+    log_audit("LOGOUT")
+    set_config("current_user_id", "")
+    console.print(f"[yellow]{T('auth_logout')}[/yellow]")
+
+@app.command(name="USER-DELETE")
+def delete_user_account():
+    """Delete current user."""
+    init_db()
+    uid = get_current_user_id()
+    if not uid:
+        console.print(f"[red]{T('auth_login_required')}[/red]")
+        return
+        
+    console.print(f"[bold red]{T('auth_user_delete_confirm')}[/bold red]")
+    password = typer.prompt("Password", hide_input=True, prompt_suffix=": ")
+    
+    conn = get_db_connection()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    
+    if user and verify_password(user['password_hash'], user['salt'], password):
+        # Delete data first
+        conn.execute("DELETE FROM events WHERE user_id=?", (uid,))
+        conn.execute("DELETE FROM users WHERE id=?", (uid,))
+        conn.commit()
+        conn.close()
+        
+        set_config("current_user_id", "")
+        log_audit("USER-DELETE", f"Deleted user {user['username']}")
+        console.print("[red]Account and data deleted.[/red]")
+    else:
+        conn.close()
+        console.print("[red]Invalid password.[/red]")
     conn.commit()
     conn.close()
 
@@ -163,9 +481,13 @@ def parse_date(date_str: str) -> datetime:
         console.print(f"[{ERROR_STYLE}]{T('invalid_date_format')}[/{ERROR_STYLE}]")
         raise typer.Exit(code=1)
 
+
 def get_active_session_start(conn) -> Optional[datetime]:
-    """Returns the start time of the current session if active, else None."""
-    cursor = conn.execute("SELECT timestamp, event_type FROM events ORDER BY timestamp DESC LIMIT 1")
+    """Returns the start time of the current session for current user."""
+    uid = get_current_user_id()
+    if not uid: return None
+    
+    cursor = conn.execute("SELECT timestamp, event_type FROM events WHERE user_id=? ORDER BY timestamp DESC LIMIT 1", (uid,))
     row = cursor.fetchone()
     if row and row['event_type'] == 'START':
         return datetime.fromisoformat(row['timestamp'])
@@ -185,6 +507,12 @@ def print_banner(subtitle: str = ""):
     grid = Table.grid(expand=True)
     grid.add_column(justify="center", ratio=1)
     grid.add_row(Text("⚡ WORK-CLI ⚡", style="bold magenta", justify="center"))
+    
+    # Show User info in banner
+    user = get_current_user_name()
+    if user:
+         grid.add_row(Text(f"User: {user}", style="dim green", justify="center"))
+         
     if subtitle:
         grid.add_row(Text(subtitle, style="cyan", justify="center"))
     
@@ -196,6 +524,8 @@ def print_banner(subtitle: str = ""):
 def start_timer(description: str = typer.Argument(None)):
     """Start the timer. Optional: Add a description."""
     init_db()
+    ensure_logged_in()
+    
     conn = get_db_connection()
     if get_active_session_start(conn):
         console.print(Panel(Align.center(f"[bold yellow]{T('timer_already_running')}[/bold yellow]", vertical="middle"), 
@@ -205,9 +535,16 @@ def start_timer(description: str = typer.Argument(None)):
 
     now = datetime.now()
     desc_enc = encrypt_text(description) if description else None
-    conn.execute("INSERT INTO events (timestamp, event_type, description) VALUES (?, ?, ?)", (now.isoformat(), 'START', desc_enc))
+    
+    # User ID check
+    uid = get_current_user_id()
+    
+    conn.execute("INSERT INTO events (timestamp, event_type, description, user_id) VALUES (?, ?, ?, ?)", 
+                 (now.isoformat(), 'START', desc_enc, uid))
     conn.commit()
     conn.close()
+    
+    log_audit("CMD_ON", f"Started. Desc: {description or 'None'}")
     
     console.print(Panel(Align.center(f"[bold green]{T('timer_started')}[/bold green]\nTime: [cyan]{now.strftime('%H:%M:%S')}[/cyan] 🚀", vertical="middle"), 
                       title="Success", border_style="green", box=box.HEAVY, padding=(1, 5)))
@@ -221,6 +558,8 @@ def start_timer(description: str = typer.Argument(None)):
 def stop_timer():
     """Stop the timer."""
     init_db()
+    ensure_logged_in()
+    
     conn = get_db_connection()
     start_time = get_active_session_start(conn)
     if not start_time:
@@ -231,9 +570,14 @@ def stop_timer():
 
     now = datetime.now()
     duration = calculate_duration(start_time, now)
-    conn.execute("INSERT INTO events (timestamp, event_type) VALUES (?, ?)", (now.isoformat(), 'STOP'))
+    uid = get_current_user_id()
+    
+    conn.execute("INSERT INTO events (timestamp, event_type, user_id) VALUES (?, ?, ?)", 
+                 (now.isoformat(), 'STOP', uid))
     conn.commit()
     conn.close()
+    
+    log_audit("CMD_OFF", f"Stopped. Duration: {format_duration(duration)}")
     
     text = Text()
     text.append(f"{T('timer_stopped')}\n", style="bold red")
@@ -247,6 +591,7 @@ def stop_timer():
 def current_time():
     """Show current session time."""
     init_db()
+    ensure_logged_in()
     conn = get_db_connection()
     start_time = get_active_session_start(conn)
     conn.close()
@@ -260,10 +605,11 @@ def current_time():
 
 def calculate_daily_total(target_date: datetime) -> timedelta:
     conn = get_db_connection()
+    uid = get_current_user_id()
     date_str = target_date.strftime("%Y-%m-%d")
     cursor = conn.execute(
-        "SELECT timestamp, event_type FROM events WHERE timestamp LIKE ? ORDER BY timestamp ASC", 
-        (f"{date_str}%",)
+        "SELECT timestamp, event_type FROM events WHERE timestamp LIKE ? AND user_id=? ORDER BY timestamp ASC", 
+        (f"{date_str}%", uid)
     )
     events = cursor.fetchall()
     conn.close()
@@ -293,6 +639,7 @@ def calculate_daily_total(target_date: datetime) -> timedelta:
 def time_today():
     """Show total time worked today."""
     init_db()
+    ensure_logged_in()
     now = datetime.now()
     total = calculate_daily_total(now)
     
@@ -308,25 +655,41 @@ def show_db_path():
 @app.command(name="BACKUP")
 def backup_db():
     """Backup the database."""
+    # Login required for backup? Probably yes to prevent leaking other users data if naive backup.
+    # Actually, backing up the whole DB backs up ALL users. This is an admin/local/owner action.
+    # Allowing it without login is a risk if someone else uses your PC.
+    # Enforce login.
+    init_db()
+    ensure_logged_in()
+    
     if not DB_PATH.exists():
         console.print(Panel(f"[bold red]{T('database_exist_error')}[/bold red]", border_style="red"))
         return
     
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
     backup_name = f"{DB_NAME}_{timestamp}"
-    backup_path = BACKUP_DIR / backup_name
+    backup_folder = BACKUP_DIR / f"backup_{timestamp}"
+    backup_folder.mkdir(parents=True, exist_ok=True)
     
-    if not BACKUP_DIR.exists():
-        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-        
+    backup_path = backup_folder / DB_NAME
+    
     shutil.copy(DB_PATH, backup_path)
-    console.print(Panel(f"{T('backup_created')}: [bold green]{backup_name}[/bold green]\n{T('location')}: [blue]{backup_path}[/blue] 💾", 
+    
+    # Backup Logs
+    if LOGS_DIR.exists():
+        log_backup = backup_folder / "logs"
+        shutil.copytree(LOGS_DIR, log_backup)
+    
+    log_audit("BACKUP", f"Created backup at {backup_folder}")
+    
+    console.print(Panel(f"{T('backup_created')}: [bold green]{backup_name}[/bold green]\n{T('location')}: [blue]{backup_folder}[/blue] 💾", 
                       title="Backup Success", border_style="green", box=box.ROUNDED))
 
 @app.command(name="TIME-SELECT")
 def time_select(date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
     """Show total time specific date."""
     init_db()
+    ensure_logged_in()
     target_date = parse_date(date_str)
     total = calculate_daily_total(target_date)
     console.print(Panel(Align.center(
@@ -337,6 +700,7 @@ def time_select(date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
 def time_range(start_date_str: str = typer.Argument(..., metavar="dd/mm/yyyy"), end_date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
     """Show total time in date range."""
     init_db()
+    ensure_logged_in()
     start_date = parse_date(start_date_str)
     end_date = parse_date(end_date_str)
     
@@ -355,11 +719,13 @@ def time_range(start_date_str: str = typer.Argument(..., metavar="dd/mm/yyyy"), 
 def init_time():
     """Show first start time today."""
     init_db()
+    ensure_logged_in()
     today_str = get_today_str()
     conn = get_db_connection()
+    uid = get_current_user_id()
     cursor = conn.execute(
-        "SELECT timestamp FROM events WHERE timestamp LIKE ? AND event_type='START' ORDER BY timestamp ASC LIMIT 1",
-        (f"{today_str}%",)
+        "SELECT timestamp FROM events WHERE timestamp LIKE ? AND event_type='START' AND user_id=? ORDER BY timestamp ASC LIMIT 1",
+        (f"{today_str}%", uid)
     )
     row = cursor.fetchone()
     conn.close()
@@ -375,13 +741,15 @@ def init_time():
 def init_time_when(date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
     """Show first start time on specific date."""
     init_db()
+    ensure_logged_in()
     target_date = parse_date(date_str)
     date_iso_prefix = target_date.strftime("%Y-%m-%d")
+    uid = get_current_user_id()
     
     conn = get_db_connection()
     cursor = conn.execute(
-        "SELECT timestamp FROM events WHERE timestamp LIKE ? AND event_type='START' ORDER BY timestamp ASC LIMIT 1",
-        (f"{date_iso_prefix}%",)
+        "SELECT timestamp FROM events WHERE timestamp LIKE ? AND event_type='START' AND user_id=? ORDER BY timestamp ASC LIMIT 1",
+        (f"{date_iso_prefix}%", uid)
     )
     row = cursor.fetchone()
     conn.close()
@@ -396,7 +764,8 @@ def init_time_when(date_str: str = typer.Argument(..., metavar="dd/mm/yyyy")):
 
 @app.command(name="CLEAR-ALL")
 def clear_all():
-    """Clear all database data."""
+    """Clear all database data for current user."""
+    ensure_logged_in() # Mandatory
     if not DB_PATH.exists():
         console.print(Panel(f"[yellow]{T('database_empty')}[/yellow]", border_style="yellow"))
         return
@@ -407,7 +776,8 @@ def clear_all():
         raise typer.Abort()
         
     conn = get_db_connection()
-    conn.execute("DELETE FROM events")
+    uid = get_current_user_id()
+    conn.execute("DELETE FROM events WHERE user_id=?", (uid,))
     conn.commit()
     conn.close()
     console.print(Panel(f"[bold red]{T('database_cleared')}[/bold red]", title="Warning", border_style="red", box=box.HEAVY))
