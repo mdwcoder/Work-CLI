@@ -116,6 +116,21 @@ work EXPORT-CSV 01/01/2026 31/01/2026
 work EXPORT-PDF 01/01/2026 31/01/2026
 ```
 
+### 9. 💾 Backup Management (Advanced)
+By default, the system creates backups automatically (Frequency: MONTHLY).
+
+```bash
+# Configure Auto-Backup Frequency
+work CONFIG-BACKUP-AUTO DAILY      # Every day
+work CONFIG-BACKUP-AUTO MONTHLY    # Every month (Default)
+work CONFIG-BACKUP-AUTO CUSTOM 3   # Every 3 months
+work CONFIG-BACKUP-AUTO NEVER      # Disable auto-backup
+
+# Restore from a backup file (WARNING: Overwrites current data)
+# Files are located in the 'backup/' directory
+work LOAD-BACKUP backup_20260101_120000.db
+```
+
 ## ⚙️ Technical Details
 
 *   **Logic**: `src/Working_Code.py` | Core logic with global error wrapping.

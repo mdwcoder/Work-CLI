@@ -74,7 +74,14 @@ TRANSLATIONS = {
         "report_title": "Work History Report",
         "report_summary": "Summary",
         "total_sessions": "Total Sessions",
-        "total_duration": "Total Duration"
+        "total_duration": "Total Duration",
+        "desc_load_backup": "Restore backup file",
+        "desc_config_backup": "Configure Auto-Backup",
+        "backup_restore_confirm": "WARNING: This will overwrite current data. Restore from",
+        "backup_restored": "Database successfully restored.",
+        "backup_not_found": "Backup file not found.",
+        "backup_config_updated": "Auto-backup frequency set to",
+        "backup_auto_triggered": "Auto-backup triggered"
     },
     "ES": {
         "error_critical_dir": "ERROR CRÍTICO: No se puede crear el directorio de datos",
@@ -151,7 +158,14 @@ TRANSLATIONS = {
         "report_title": "Reporte de Historial Laboral",
         "report_summary": "Resumen",
         "total_sessions": "Total Sesiones",
-        "total_duration": "Tiempo Total"
+        "total_duration": "Tiempo Total",
+        "desc_load_backup": "Restaurar copia de seguridad",
+        "desc_config_backup": "Configurar Auto-Backup",
+        "backup_restore_confirm": "ADVERTENCIA: Esto sobrescribirá los datos actuales. ¿Restaurar desde",
+        "backup_restored": "Base de datos restaurada con éxito.",
+        "backup_not_found": "Archivo de copia de seguridad no encontrado.",
+        "backup_config_updated": "Frecuencia de auto-backup configurada en",
+        "backup_auto_triggered": "Auto-backup activado"
     },
     "FR": {
         "error_critical_dir": "ERREUR CRITIQUE: Impossible de créer le répertoire",
@@ -228,7 +242,14 @@ TRANSLATIONS = {
         "report_title": "Rapport d'activité",
         "report_summary": "Résumé",
         "total_sessions": "Sessions Totales",
-        "total_duration": "Durée Totale"
+        "total_duration": "Durée Totale",
+        "desc_load_backup": "Restaurer la sauvegarde",
+        "desc_config_backup": "Configurer Auto-Sauvegarde",
+        "backup_restore_confirm": "ATTENTION: Cela écrasera les données actuelles. Restaurer depuis",
+        "backup_restored": "Base de données restaurée avec succès.",
+        "backup_not_found": "Fichier de sauvegarde introuvable.",
+        "backup_config_updated": "Fréquence de sauvegarde auto réglée sur",
+        "backup_auto_triggered": "Sauvegarde auto déclenchée"
     },
     "PT": {
         "error_critical_dir": "ERRO CRÍTICO: Não é possível criar diretório",
@@ -305,7 +326,14 @@ TRANSLATIONS = {
         "report_title": "Relatório de Histórico",
         "report_summary": "Resumo",
         "total_sessions": "Sessões Totais",
-        "total_duration": "Duração Total"
+        "total_duration": "Duração Total",
+        "desc_load_backup": "Restaurar backup",
+        "desc_config_backup": "Configurar Auto-Backup",
+        "backup_restore_confirm": "AVISO: Isso substituirá os dados atuais. Restaurar de",
+        "backup_restored": "Banco de dados restaurado com sucesso.",
+        "backup_not_found": "Arquivo de backup não encontrado.",
+        "backup_config_updated": "Frequência de auto-backup definida para",
+        "backup_auto_triggered": "Auto-backup acionado"
     }
 }
 

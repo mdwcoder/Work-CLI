@@ -699,11 +699,119 @@ def export_pdf(start_date_str: str, end_date_str: str):
     except Exception as e:
         console.print(Panel(f"[bold red]Error: {e}[/bold red]", border_style="red"))
 
+
+# --- Backup Features ---
+
+def check_auto_backup():
+    """
+    Check if auto-backup is needed based on config.
+    Freq: DAILY, MONTHLY (default), NEVER, CUSTOM
+    """
+    try:
+        freq = get_config("backup_freq")
+        if not freq:
+            freq = "MONTHLY"
+            set_config("backup_freq", freq)
+            
+        if freq == "NEVER":
+            return
+
+        last_backup_str = get_config("last_auto_backup")
+        # If no record, assume we need one (or maybe set to now to avoid immediate?) 
+        # For safety, let's do one if never done.
+        
+        should_backup = False
+        now = datetime.now()
+        
+        if not last_backup_str:
+            should_backup = True
+        else:
+            last_backup = datetime.fromisoformat(last_backup_str)
+            
+            if freq == "DAILY":
+                if now.date() > last_backup.date():
+                    should_backup = True
+            elif freq == "MONTHLY":
+                # Check if month changed
+                if now.month != last_backup.month or now.year != last_backup.year:
+                    should_backup = True
+            elif freq == "CUSTOM":
+                # Custom interval in months (e.g., every 3 months)
+                interval = int(get_config("backup_interval") or "1")
+                # Simple check: month difference
+                months_diff = (now.year - last_backup.year) * 12 + now.month - last_backup.month
+                if months_diff >= interval:
+                    should_backup = True
+
+        if should_backup:
+            backup_database() # This existing function handles the copy
+            set_config("last_auto_backup", now.isoformat())
+            # console.print(f"[dim]{T('backup_auto_triggered')}: {freq}[/dim]")
+
+    except Exception:
+        pass # Fail silently on auto-backup checks
+
+
+@app.command(name="LOAD-BACKUP")
+def load_backup(filename: str):
+    """Restore database from a backup file."""
+    # Safety: don't init db if we are going to overwrite it, 
+    # but we need config? No, config is in DB. 
+    # Just checking file existence is enough.
+    
+    backup_path = BACKUP_DIR / filename
+    if not backup_path.exists():
+        console.print(Panel(f"[bold red]{T('backup_not_found')}: {filename}[/bold red]", border_style="red"))
+        return
+        
+    if typer.confirm(f"{T('backup_restore_confirm')} '{filename}'?", abort=True):
+        import shutil
+        try:
+            # Close existing connections if possible? 
+            # In this script execution, we haven't opened yet unless init_db called.
+            # We overwrite DB_PATH
+            shutil.copy(backup_path, DB_PATH)
+            console.print(Panel(f"[bold green]{T('backup_restored')}[/bold green]", border_style="green"))
+        except Exception as e:
+            console.print(Panel(f"[bold red]Restore Error: {e}[/bold red]", border_style="red"))
+
+@app.command(name="CONFIG-BACKUP-AUTO")
+def config_backup(frequency: str, interval: int = 1):
+    """
+    Configure auto-backup.
+    FREQ: DAILY, MONTHLY, NEVER, CUSTOM
+    INTERVAL: X (only for CUSTOM, e.g. every X months)
+    """
+    init_db()
+    freq = frequency.upper()
+    if freq not in ["DAILY", "MONTHLY", "NEVER", "CUSTOM"]:
+         console.print("[red]Invalid Frequency. Use: DAILY, MONTHLY, NEVER, CUSTOM[/red]")
+         return
+         
+    set_config("backup_freq", freq)
+    if freq == "CUSTOM":
+        set_config("backup_interval", str(interval))
+        
+    console.print(Panel(f"[bold green]{T('backup_config_updated')} {freq}[/bold green]", border_style="green"))
+
+
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
     """
     Working_Code Time Tracker
     """
+    # Always check auto-backup on any run (or only main?)
+    # Running on any command ensures we don't miss it if user uses it daily.
+    # But we need DB ready.
+    if DB_PATH.exists():
+        try:
+            # We assume DB is accessible. 
+            # We need to initialize config table lookup if not using get_config wrapper that connects.
+            # get_config does internal connection.
+            check_auto_backup() 
+        except: 
+            pass
+
     if ctx.invoked_subcommand is None:
         # Custom Help
         print_banner(T("welcome_banner"))
@@ -721,6 +829,8 @@ def main(ctx: typer.Context):
             ("TIME-TODAY", "desc_time_today", "work TIME-TODAY"),
             ("DB", "desc_db", "work DB"),
             ("BACKUP", "desc_backup", "work BACKUP"),
+            ("LOAD-BACKUP", "desc_load_backup", "work LOAD-BACKUP [file]"),
+            ("CONFIG-BACKUP-AUTO", "desc_config_backup", "work CONFIG-BACKUP-AUTO [freq]"),
             ("TIME-SELECT", "desc_time_select", "work TIME-SELECT dd/mm/yyyy"),
             ("TIME-RANGE", "desc_time_range", "work TIME-RANGE d1/m1..."),
             ("INIT-TIME", "desc_init_time", "work INIT-TIME"),
