@@ -1,0 +1,12 @@
+services:
+  work-cli:
+    build: .
+    image: work-cli:latest
+    container_name: work-cli
+    volumes:
+      - ./data:/app/data
+      - ./backup:/app/backup
+    # Enable interactive mode for the CLI
+    stdin_open: true 
+    tty: true
+    # Command can be overridden by users (e.g. docker compose run work-cli ON)

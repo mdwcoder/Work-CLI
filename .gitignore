@@ -15,3 +15,7 @@ data/*.db-journal
 # Ignore everything in backup except .gitkeep (if we create it)
 backup/*
 !backup/.gitkeep
+
+# Tests
+tests/
+

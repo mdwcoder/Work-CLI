@@ -6,19 +6,67 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNNER_PATH="$SCRIPT_DIR/scripts/working_runner.sh"
 BACKUP_DIR="$SCRIPT_DIR/backup"
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "╔════════════════════════════════════════╗"
+echo -e "║      Working_Code Auto-Installer       ║"
+echo -e "╚════════════════════════════════════════╝"
+echo ""
+
+# --- OS Detection & Dependency Check ---
+echo -e "${BLUE}🔍 Detecting System...${NC}"
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS
+    echo -e "  Detected: ${GREEN}macOS${NC}"
+    if ! command -v python3 &> /dev/null; then
+        echo -e "${RED}Error: Python 3 is not installed.${NC}"
+        echo "Please install it using: brew install python"
+        exit 1
+    fi
+elif [ -f /etc/os-release ]; then
+    . /etc/os-release
+    DISTRO=$NAME
+    ID=$ID
+    echo -e "  Detected: ${GREEN}$DISTRO ($ID)${NC}"
+    
+    # Distro Specific Checks
+    if [[ "$ID" == "arch" || "$ID" == "manjaro" ]]; then
+        echo -e "${YELLOW}  -> Checking Arch/Manjaro dependencies...${NC}"
+        if ! pacman -Qi python &> /dev/null; then
+             echo -e "${RED}Warning: Python logic might fail if system is minimal.${NC}"
+        fi
+    elif [[ "$ID" == "debian" || "$ID" == "ubuntu" || "$ID" == "pop" ]]; then
+        echo -e "${YELLOW}  -> Checking Debian/Ubuntu dependencies...${NC}"
+        # specialized check for venv module which is often separate
+        if ! dpkg -s python3-venv &> /dev/null; then
+            echo -e "${RED}Warning: 'python3-venv' is likely missing.${NC}"
+            echo -e "Please run: ${BLUE}sudo apt install python3-venv${NC}"
+            read -p "Continue anyway? (y/n): " CONT
+            if [[ "$CONT" != "y" ]]; then exit 1; fi
+        fi
+    elif [[ "$ID" == "fedora" ]]; then
+         echo -e "${YELLOW}  -> Checking Fedora dependencies...${NC}"
+         # Fedora usually comes with full python, but good to note
+    fi
+else
+    echo -e "${YELLOW}Unknown Linux distribution. Proceeding with standard checks.${NC}"
+fi
+
 # Ensure the runner is executable
 if [ -f "$RUNNER_PATH" ]; then
     chmod +x "$RUNNER_PATH"
 else
-    echo "Error: runner script not found at $RUNNER_PATH"
+    echo -e "${RED}Error: runner script not found at $RUNNER_PATH${NC}"
     exit 1
 fi
 
-echo "╔════════════════════════════════════════╗"
-echo "║      Working_Code Auto-Installer       ║"
-echo "╚════════════════════════════════════════╝"
 echo ""
-echo "This script will add an alias to your shell configuration."
 echo "Path identified: $RUNNER_PATH"
 echo "Backup location: $BACKUP_DIR"
 echo ""
@@ -26,16 +74,6 @@ echo ""
 # Alias naming
 ALIAS_NAME="work"
 echo "Alias to be added: $ALIAS_NAME"
-echo ""
-echo "--------------------------------------------------------"
-echo "HELP:"
-echo "This installer prepares your environment for the Time Tracker."
-echo "It effectively does the following:"
-echo "1. Checks your shell type."
-echo "2. Adds an alias '$ALIAS_NAME' to your config file."
-echo "3. The alias executes '$RUNNER_PATH'."
-echo "4. That script manages the Python venv automatically."
-echo "--------------------------------------------------------"
 
 # Select Shell
 echo ""
@@ -67,7 +105,7 @@ case $SHELL_OPT in
         ALIAS_CMD="alias $ALIAS_NAME '$RUNNER_PATH'"
         
         if [ ! -d "$HOME/.config/fish" ]; then
-            echo "Warning: Fish config directory not found."
+            echo -e "${YELLOW}Warning: Fish config directory not found.${NC}"
         fi
         ;;
     4)
@@ -83,7 +121,6 @@ esac
 
 echo ""
 echo "Target: $SHELL_NAME ($CONFIG_FILE)"
-echo "Command to add: $ALIAS_CMD"
 echo ""
 
 # Check if file exists
@@ -100,7 +137,7 @@ fi
 
 # Check if alias already exists (simple grep)
 if grep -q "$RUNNER_PATH" "$CONFIG_FILE"; then
-    echo "Warning: It seems like $RUNNER_PATH is already referenced in $CONFIG_FILE."
+    echo -e "${YELLOW}Warning: It seems like $RUNNER_PATH is already referenced in $CONFIG_FILE.${NC}"
     read -p "Add anyway? (y/n): " ADD_ANYWAY
     if [[ "$ADD_ANYWAY" != "y" && "$ADD_ANYWAY" != "Y" ]]; then
         echo "Cancelled."
@@ -113,12 +150,9 @@ echo "" >> "$CONFIG_FILE"
 echo "# Working_Code Alias" >> "$CONFIG_FILE"
 echo "$ALIAS_CMD" >> "$CONFIG_FILE"
 
-echo "✅ Successfully added alias '$ALIAS_NAME' to $CONFIG_FILE"
+echo -e "${GREEN}✅ Successfully added alias '$ALIAS_NAME' to $CONFIG_FILE${NC}"
 echo ""
 echo "To use it immediately, run:"
-if [ "$SHELL_NAME" == "Fish" ]; then
-    echo "  source $CONFIG_FILE"
-else
-    echo "  source $CONFIG_FILE"
-fi
+echo -e "${BLUE}  source $CONFIG_FILE${NC}"
 echo "Then type '$ALIAS_NAME' to start."
+

@@ -7,9 +7,15 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.text import Text
+import platform
+import sys
+from rich.traceback import install
 from rich import box
 from pathlib import Path
 from typing import Optional
+
+# Install rich traceback handler for prettier unhandled exceptions
+install(show_locals=False)
 
 # Configuration
 DB_NAME = "working_code.db"
@@ -18,13 +24,37 @@ SCRIPT_DIR = Path(__file__).parent.absolute()
 DB_PATH = SCRIPT_DIR.parent / "data" / DB_NAME
 BACKUP_DIR = SCRIPT_DIR.parent / "backup"
 
+# Platform specific robustness
+SYSTEM_PLATFORM = platform.system()
+
+def check_db_permissions():
+    """Ensure we have write permissions to the database directory."""
+    if not DB_PATH.parent.exists():
+        try:
+            DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+             console.print(f"[bold red]CRITICAL ERROR:[/bold red] Cannot create data directory at {DB_PATH.parent}")
+             console.print("Please check file permissions or run with appropriate privileges.")
+             sys.exit(1)
+             
+    if DB_PATH.exists() and not os.access(DB_PATH, os.W_OK):
+        console.print(f"[bold red]CRITICAL ERROR:[/bold red] Database at {DB_PATH} is not writable.")
+        console.print("Please check file owners and permissions.")
+        sys.exit(1)
+
 app = typer.Typer(help="Visual Time Tracker for Terminal", add_completion=False)
 console = Console()
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    check_db_permissions()
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=10) # 10s timeout to handle potential locks
+        conn.row_factory = sqlite3.Row
+        return conn
+    except sqlite3.OperationalError as e:
+        console.print(f"[bold red]Database Error:[/bold red] {e}")
+        console.print("[yellow]Hint:[/yellow] The database might be locked by another process or permissions are denied.")
+        raise typer.Exit(code=1)
 
 def init_db():
     conn = get_db_connection()
@@ -301,4 +331,9 @@ def main(ctx: typer.Context):
         console.print(Panel(table, title="Welcome to Working_Code ⚡", border_style="blue"))
 
 if __name__ == "__main__":
-    app()
+    try:
+        app()
+    except Exception as e:
+        console.print(Panel(f"[bold red]An unexpected error occurred:[/bold red]\n{e}", title="System Error", border_style="red"))
+        # In debug mode (optional), you might want to raise e to see the stack trace
+        # raise e
